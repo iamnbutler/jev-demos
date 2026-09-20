@@ -1,0 +1,100 @@
+.hub {
+  max-width: 1220px;
+  padding: 30px 24px 40px;
+  margin: auto;
+}
+.hub-heading {
+  margin-bottom: 25px;
+}
+.hub-heading h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+.hub-heading p {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 7px;
+}
+.hub-list {
+  width: 100%;
+  border-top: 1px solid var(--border);
+}
+.hub-labels,
+.hub-row {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 90px;
+  gap: 24px;
+  align-items: baseline;
+  padding: 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.hub-labels {
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 11px;
+  padding-bottom: 11px;
+  background: var(--canvas);
+}
+.hub-row {
+  color: var(--text);
+  text-decoration: none;
+  min-height: 60px;
+}
+.hub-row:hover {
+  background: var(--canvas);
+  text-decoration: none;
+}
+.hub-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.hub-row:hover .hub-name {
+  text-decoration: underline;
+}
+.hub-description {
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.6;
+}
+.hub-input {
+  font-size: 12px;
+  color: var(--muted);
+}
+.hub-footnote {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 22px;
+  line-height: 1.6;
+}
+@media (max-width: 800px) {
+  .hub {
+    padding: 24px 16px;
+  }
+  .hub-labels,
+  .hub-row {
+    grid-template-columns: 175px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .hub-labels > span:last-child,
+  .hub-input {
+    display: none;
+  }
+}
+@media (max-width: 520px) {
+  .hub {
+    padding: 22px 12px;
+  }
+  .hub-labels {
+    display: none;
+  }
+  .hub-row {
+    grid-template-columns: 1fr;
+    gap: 5px;
+    padding: 15px 8px;
+  }
+  .hub-description {
+    font-size: 13px;
+  }
+}

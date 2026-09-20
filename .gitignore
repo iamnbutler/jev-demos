@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+.DS_Store
+.cache/
+test-results/
+playwright-report/
+*.log

@@ -1,0 +1,39 @@
+{
+  "name": "jev-demos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun scripts/dev.ts",
+    "build": "tsc --noEmit && vite build",
+    "start": "bun server/index.ts",
+    "fix": "oxfmt --write && oxlint --fix",
+    "check": "tsc --noEmit && oxlint --deny-warnings --format=agent && oxfmt --check",
+    "test": "bun test tests/*.test.ts src/demos/**/*.test.ts",
+    "test:browser": "playwright test",
+    "test:live": "bun scripts/live-check.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.127.0",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "dotenv": "^17.2.3",
+    "lucide-react": "^1.38.0",
+    "openai": "7.20.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.3.1",
+    "yaml": "^2.8.2",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/bun": "^1.4.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "oxfmt": "0.66.0",
+    "oxlint": "1.81.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.2.2"
+  }
+}
