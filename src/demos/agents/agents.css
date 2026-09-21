@@ -221,6 +221,33 @@
   padding: 12px;
   border-bottom: 1px solid var(--border);
 }
+.agents-thread-turn[data-expanded="false"] .agents-thread-turn-header {
+  border-bottom: 0;
+}
+.agents-thread-turn-content[hidden] {
+  display: none;
+}
+.agents-thread-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.agents-thread-toggle > svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--muted);
+}
+.agents-thread-toggle:hover {
+  color: var(--accent);
+}
 .agents-thread-turn-heading {
   display: flex;
   gap: 12px;

@@ -36,6 +36,45 @@ export const REVIEW_LENSES: {
   },
 ];
 
+export const REVIEW_CHECKS = [
+  {
+    id: "expands_permissions",
+    label: "Expands permissions",
+    tone: "amber",
+    statement:
+      "The runtime change permits an actor, role, or caller to perform an operation or access a resource they could not previously access. Compare the actual authorization rule using the supplied role hierarchy. Narrower access, equivalent renames, comments, and test-only changes do not qualify.",
+  },
+  {
+    id: "changes_api_response",
+    label: "Changes API response",
+    tone: "neutral",
+    statement:
+      "The hunk directly changes a public HTTP response status code or the shape or fields of its response body. Require visible before/after response construction. An internal helper return value, altered authorization gate, timeout, test, or documentation alone does not qualify.",
+  },
+  {
+    id: "swallows_errors",
+    label: "Swallows errors",
+    tone: "red",
+    statement:
+      "A runtime failure that previously propagated now gets caught or suppressed, allowing the operation to continue or return without propagating that failure to its caller. Logging the error still qualifies. Rethrowing, adding a timeout, and merely testing an error do not qualify.",
+  },
+  {
+    id: "weakens_assertions",
+    label: "Weakens assertions",
+    tone: "red",
+    statement:
+      "An existing test assertion is removed or replaced by a less restrictive assertion, allowing behavior previously rejected by the test. Equivalent rewrites and new test cases do not qualify.",
+  },
+  {
+    id: "adds_test_coverage",
+    label: "Adds test coverage",
+    tone: "neutral",
+    statement:
+      "The change adds a test case or assertion that checks a behavior or guarantee not covered by the original assertions shown in this hunk. Require visible executable test assertions; test names, sample data, documentation, and a weaker replacement assertion do not qualify.",
+  },
+] as const;
+export type ReviewCheckId = (typeof REVIEW_CHECKS)[number]["id"];
+
 export type ReviewHunk = {
   id: string;
   path: string;

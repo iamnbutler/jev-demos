@@ -1,5 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Pin, PinOff, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, Copy, Pin, PinOff, ShieldCheck } from "lucide-react";
 import {
   Badge,
   Button,
@@ -66,6 +66,11 @@ function ThreadTurn({
   onPin: (id: string) => void;
 }) {
   const titleId = `context-title-${turn.id}`;
+  const contentId = `context-content-${turn.id}`;
+  const [disclosure, setDisclosure] = useState({ reason, expanded: reason !== "budget" });
+  // Keep manual inspection until the retention reason changes, then restore that reason's default.
+  if (disclosure.reason !== reason) setDisclosure({ reason, expanded: reason !== "budget" });
+  const { expanded } = disclosure;
   return (
     <article
       id={`context-turn-${turn.id}`}
@@ -74,6 +79,7 @@ function ThreadTurn({
       data-retained={retained}
       data-retention={reason}
       data-active={active}
+      data-expanded={expanded}
       aria-labelledby={titleId}
       tabIndex={-1}
     >
@@ -81,7 +87,19 @@ function ThreadTurn({
         <div className="agents-thread-turn-heading">
           <span className="agents-thread-number mono">{String(index + 1).padStart(2, "0")}</span>
           <div>
-            <h3 id={titleId}>{turn.title}</h3>
+            <h3 id={titleId}>
+              <button
+                type="button"
+                className="agents-thread-toggle"
+                aria-label={`${expanded ? "Collapse" : "Expand"} ${turn.title}`}
+                aria-expanded={expanded}
+                aria-controls={contentId}
+                onClick={() => setDisclosure({ reason, expanded: !expanded })}
+              >
+                {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                <span>{turn.title}</span>
+              </button>
+            </h3>
             <p>
               {turn.kind === "exchange"
                 ? "Call + result"
@@ -115,41 +133,43 @@ function ThreadTurn({
           )}
         </div>
       </header>
-      <div className="agents-thread-messages">
-        {turn.messages.map((message) => (
-          <div
-            className="agents-chat-message"
-            data-role={message.role}
-            data-tool={Boolean(message.toolCallId)}
-            key={message.id}
-          >
-            <div className="agents-chat-message-label">
-              <strong>
-                {message.role === "tool"
-                  ? "Tool result"
-                  : message.toolCallId
-                    ? "Assistant · tool call"
-                    : message.role === "user"
-                      ? "User"
-                      : "Assistant"}
-              </strong>
-              {message.toolCallId && <span className="mono">{message.toolCallId}</span>}
+      <div id={contentId} className="agents-thread-turn-content" hidden={!expanded}>
+        <div className="agents-thread-messages">
+          {turn.messages.map((message) => (
+            <div
+              className="agents-chat-message"
+              data-role={message.role}
+              data-tool={Boolean(message.toolCallId)}
+              key={message.id}
+            >
+              <div className="agents-chat-message-label">
+                <strong>
+                  {message.role === "tool"
+                    ? "Tool result"
+                    : message.toolCallId
+                      ? "Assistant · tool call"
+                      : message.role === "user"
+                        ? "User"
+                        : "Assistant"}
+                </strong>
+                {message.toolCallId && <span className="mono">{message.toolCallId}</span>}
+              </div>
+              <pre>{message.body}</pre>
             </div>
-            <pre>{message.body}</pre>
-          </div>
-        ))}
-      </div>
-      <footer className="agents-thread-turn-footer">
-        <div className="agents-thread-judgments">
-          <Probability value={judgment?.relevant} label="P(relevant)" compact />
-          <Probability value={judgment?.essential} label="P(essential)" compact />
+          ))}
         </div>
-        {!retained && (
-          <span className="agents-thread-recovery">
-            Outside assembled context. Full source preserved.
-          </span>
-        )}
-      </footer>
+        <footer className="agents-thread-turn-footer">
+          <div className="agents-thread-judgments">
+            <Probability value={judgment?.relevant} label="P(relevant)" compact />
+            <Probability value={judgment?.essential} label="P(essential)" compact />
+          </div>
+          {!retained && (
+            <span className="agents-thread-recovery">
+              Outside assembled context. Full source preserved.
+            </span>
+          )}
+        </footer>
+      </div>
     </article>
   );
 }

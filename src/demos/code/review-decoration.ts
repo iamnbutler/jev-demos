@@ -1,8 +1,10 @@
 import { parsePatchFiles, type FileDiffMetadata } from "@pierre/diffs";
 import type { JevResponse } from "../../../shared/api";
 import type { SourceMark, SourceTone } from "../../components/DiffView";
-import { readProbability, reviewQuestionKey } from "./analysis";
-import { REVIEW_LENSES, type ReviewHunk, type ReviewLensId } from "./review-data";
+import { readProbability, reviewCheckKey, reviewQuestionKey } from "./analysis";
+import { REVIEW_CHECKS, REVIEW_LENSES, type ReviewHunk, type ReviewLensId } from "./review-data";
+
+export const MIN_LENS_PROBABILITY = 0.1;
 
 export type ChangedRange = {
   side: "additions" | "deletions";
@@ -103,7 +105,16 @@ export function reviewDecoration(
     tone: LENS_TONES[lens.id],
     probability: readProbability(response, reviewQuestionKey(hunk.id, lens.id)),
     selected: selected.includes(lens.id),
-  }));
+  })).sort((a, b) => (b.probability ?? -1) - (a.probability ?? -1));
+  const visibleJudgments = judgments.filter(
+    (item) => item.probability === undefined || item.probability >= MIN_LENS_PROBABILITY,
+  );
+  const yesChecks = REVIEW_CHECKS.flatMap((check) => {
+    const answer = response?.answers[reviewCheckKey(hunk.id, check.id)];
+    return answer?.type === "choice" && answer.choice === "yes"
+      ? [{ ...check, confidence: answer.confidence }]
+      : [];
+  });
   const active = judgments
     .filter(
       (item) => item.selected && item.probability !== undefined && item.probability >= threshold,
@@ -111,11 +122,20 @@ export function reviewDecoration(
     .sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
   const unknown = judgments.some((item) => item.selected && item.probability === undefined);
   // The model judges a hunk, not an individual line. Mark its actual changed
-  // ranges with the strongest selected lens; list every selected score inline.
+  // ranges with the strongest selected lens; show ranked scores >=10% inline.
   const marks: SourceMark[] = active[0]
     ? coordinates.ranges.map((range) => ({ ...range, tone: active[0].tone }))
     : [];
-  return { ...coordinates, judgments, active, unknown, matches: active.length > 0, marks };
+  return {
+    ...coordinates,
+    judgments,
+    visibleJudgments,
+    yesChecks,
+    active,
+    unknown,
+    matches: active.length > 0,
+    marks,
+  };
 }
 
 export function rangeLabel(range: ChangedRange) {

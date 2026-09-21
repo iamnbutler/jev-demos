@@ -28,9 +28,11 @@ Each function gets a separate judgment. Probabilities from separate batches are 
 ## Review lenses
 
 1. Analyze the diff in the default **Decorate** mode. Colored range marks and inline judgments appear on the actual changed lines.
+   Category scores appear highest first within each hunk; values below 10% are hidden.
 2. Toggle the **Access control** lens and compare real role/authorization changes with a permission-related rename.
 3. Enable **Weaker tests** and inspect removed or replaced assertions. Adjust **Mark at** to see which ranges retain their marks.
-4. Switch to **Filter** to fold unrelated hunks, then unfold one to inspect what was excluded. Expand **Context and all judgments** for the source contract and complete lens results.
+4. Inspect the separate Yes checks. **Expands permissions** has a yellow warning icon; **Swallows errors** and **Weakens assertions** have red warnings. **Changes API response** and **Adds test coverage** use check marks. Only affirmative answers appear on their matching hunks, independently of category scores and lens selection.
+5. Switch to **Filter** to fold unrelated hunks, then unfold one to inspect what was excluded. Expand **Context and scores** for the source contract and ranked categories. **Inspect evaluation** retains every answer, including hidden scores and No checks.
 
 Jev classifies each hunk across four lenses. Code maps that judgment onto its exact old/new changed ranges; it is not a separate model diagnosis of each line. Context lines are not decorated. Lens toggles, thresholds, and folding are local and reversible, with all source hunks still accessible.
 
@@ -67,8 +69,8 @@ The first tier uses Jev alone; the second uses `claude-haiku-4-5-20251001` by de
 
 1. Evaluate the objective in the stacked controls on the left. The right-hand **Full thread** preserves every source message, including complete tool calls and results.
 2. Use the vertical turn rail to jump through the conversation. Its legend identifies protected/pinned, retained, and recoverable turns; the current position follows scrolling.
-3. Find the early cancellation design evidence and compare it with stale failures and repeated command output. Lower the budget and watch retention change in place.
-4. Pin a recoverable turn back in. Budget and pin changes recompute selection locally without another model request.
+3. Find the early cancellation design evidence and compare it with stale failures and repeated command output. Lower the budget: turns excluded by the budget collapse to their headers. Expand a title to inspect the complete turn; the source stays intact.
+4. Pin a recoverable turn back in, or raise the budget to restore it. Restored turns open automatically. Manual expansion stays in effect until the turn's retention reason changes. Budget and pin changes recompute selection locally without another model request.
 5. Switch to **Assembled context** to inspect exactly what would be sent, or copy it. Return to **Full thread** to retain the original conversational context.
 6. Change the objective and evaluate again.
 

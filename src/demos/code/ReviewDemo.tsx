@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, TriangleAlert } from "lucide-react";
 import { Badge, Button, EvaluationBar, Panel, Segmented } from "../../components/ui";
 import { DiffView, type DiffNote } from "../../components/DiffView";
 import { useEvaluation } from "../../lib/jev";
@@ -21,7 +21,7 @@ const totals = REVIEW_HUNKS.reduce(
 
 export default function ReviewDemo() {
   const ev = useEvaluation();
-  const [lenses, setLenses] = useState<ReviewLensId[]>(REVIEW_LENSES.map((lens) => lens.id));
+  const [lenses, setLenses] = useState<ReviewLensId[]>(() => REVIEW_LENSES.map((lens) => lens.id));
   const [threshold, setThreshold] = useState(0.65);
   const [mode, setMode] = useState("decorate");
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -117,7 +117,7 @@ export default function ReviewDemo() {
       </div>
       <p className="review-scope">
         {ev.data ? `${matchCount} of 12 hunks marked. ` : "Analyze to mark matching changes. "}
-        Jev judges each hunk; the marks cover its changed lines, not a line-level diagnosis.
+        Scores ≥10%, highest first. Checks appear only for Yes answers.
         {mode === "filter" && ev.data
           ? ` ${12 - visible.length} hunks hidden; unknown judgments stay visible.`
           : ""}
@@ -125,13 +125,15 @@ export default function ReviewDemo() {
 
       <div className="review-hunks">
         {visible.map((item) => {
-          const { hunk, active, anchor, judgments, marks, ranges, unknown } = item;
+          const { hunk, active, anchor, visibleJudgments, yesChecks, marks, ranges, unknown } =
+            item;
+          const inlineJudgments = visibleJudgments.filter((judgment) => judgment.selected);
           const open = !collapsed[hunk.id];
           const diff = parsedDiffs.get(hunk.id)!;
           const counts = diffCounts(hunk.diff);
           const tone = active[0]?.tone ?? "neutral";
           const notes: DiffNote[] =
-            ev.data && anchor
+            ev.data && anchor && (inlineJudgments.length > 0 || yesChecks.length > 0)
               ? [
                   {
                     id: hunk.id,
@@ -142,15 +144,17 @@ export default function ReviewDemo() {
                         data-hunk-annotation={hunk.id}
                       >
                         <div className="review-annotation-head">
-                          <strong>Jev · hunk judgment</strong>
+                          <strong title="Jev judges the whole hunk; marks cover its changed lines.">
+                            Jev · hunk judgment
+                          </strong>
                           <span>{ranges.map(rangeLabel).join(" · ")}</span>
                         </div>
-                        <div className="review-inline-scores">
-                          {judgments
-                            .filter((judgment) => judgment.selected)
-                            .map((judgment) => (
+                        {inlineJudgments.length > 0 && (
+                          <div className="review-inline-scores">
+                            {inlineJudgments.map((judgment) => (
                               <span
                                 key={judgment.id}
+                                data-review-lens={judgment.id}
                                 className={`review-score review-tone-${judgment.tone} ${judgment.probability !== undefined && judgment.probability >= threshold ? "is-marked" : ""}`}
                               >
                                 <span className="review-dot" aria-hidden="true" />
@@ -162,17 +166,40 @@ export default function ReviewDemo() {
                                 </strong>
                               </span>
                             ))}
-                          {!lenses.length && (
-                            <span className="muted">Select a lens to display its probability.</span>
-                          )}
-                        </div>
+                          </div>
+                        )}
+                        {yesChecks.length > 0 && (
+                          <div className="review-yes-checks" role="list" aria-label="Yes checks">
+                            {yesChecks.map((check) => (
+                              <span
+                                key={check.id}
+                                className={`review-yes-check review-check-${check.tone}`}
+                                data-review-check={check.id}
+                                role="listitem"
+                                title={`Jev: Yes · ${Math.round(check.confidence * 100)}% confidence. ${check.statement}`}
+                              >
+                                {check.tone === "neutral" ? (
+                                  <Check size={13} aria-hidden="true" />
+                                ) : (
+                                  <TriangleAlert size={14} aria-hidden="true" />
+                                )}
+                                <span className="sr-only">Yes: </span>
+                                {check.label}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ),
                   },
                 ]
               : [];
           return (
-            <Panel key={hunk.id} className={`review-hunk review-tone-${tone}`}>
+            <Panel
+              key={hunk.id}
+              className={`review-hunk review-tone-${tone}`}
+              data-review-hunk={hunk.id}
+            >
               <button
                 type="button"
                 className="review-hunk-heading"
@@ -206,11 +233,13 @@ export default function ReviewDemo() {
                 <div id={`review-hunk-${hunk.id}`}>
                   <DiffView diff={diff} notes={notes} marks={marks} />
                   <details className="review-evidence">
-                    <summary>Context{ev.data ? " and all judgments" : ""}</summary>
+                    <summary>
+                      Context{ev.data && visibleJudgments.length > 0 ? " and scores" : ""}
+                    </summary>
                     <p>{hunk.context}</p>
-                    {ev.data && (
+                    {ev.data && visibleJudgments.length > 0 && (
                       <dl className="review-all-judgments">
-                        {judgments.map((judgment) => (
+                        {visibleJudgments.map((judgment) => (
                           <div key={judgment.id}>
                             <dt title={judgment.statement}>{judgment.label}</dt>
                             <dd>

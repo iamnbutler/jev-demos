@@ -17,16 +17,16 @@ For a production build, stop the development server, then run `bun run build && 
 
 ## Demos
 
-| Demo                | Open                                              | Try                                                                                                         |
-| ------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Workflow scanner    | [/actions](http://localhost:4317/actions)         | Inspect inline YAML findings and their repository sources. Edit or compose a workflow and scan it.          |
-| Semantic Search     | [/code-search](http://localhost:4317/code-search) | Watch 2,414 public functions rank as batches arrive. Stop/resume, compare keywords, and inspect each batch. |
-| Review lenses       | [/review](http://localhost:4317/review)           | Decorate exact changed ranges by lens; switch to Filter to fold other hunks.                                |
-| Duplicate reports   | [/duplicates](http://localhost:4317/duplicates)   | Type a report and watch relationships update after a 400 ms pause.                                          |
-| Discussion timeline | [/discussion](http://localhost:4317/discussion)   | Analyze the decision reversal. Move the cutoff earlier and analyze again.                                   |
-| Commit history      | [/history](http://localhost:4317/history)         | Compare Jev-only categorization with a Haiku-written changelog. Follow citations to source commits.         |
-| Context selection   | [/context](http://localhost:4317/context)         | Adjust the left-side objective/budget while the complete thread and vertical retention rail remain visible. |
-| Run replay          | [/replay](http://localhost:4317/replay)           | Compare productive progress, a repeated setup failure, and an unsupported success claim.                    |
+| Demo                | Open                                              | Try                                                                                                           |
+| ------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Workflow scanner    | [/actions](http://localhost:4317/actions)         | Inspect inline YAML findings and their repository sources. Edit or compose a workflow and scan it.            |
+| Semantic Search     | [/code-search](http://localhost:4317/code-search) | Watch 2,414 public functions rank as batches arrive. Stop/resume, compare keywords, and inspect each batch.   |
+| Review lenses       | [/review](http://localhost:4317/review)           | Rank categories and show Yes-only checks inline, with red/yellow warnings. Decorate or filter changed ranges. |
+| Duplicate reports   | [/duplicates](http://localhost:4317/duplicates)   | Type a report and watch relationships update after a 400 ms pause.                                            |
+| Discussion timeline | [/discussion](http://localhost:4317/discussion)   | Analyze the decision reversal. Move the cutoff earlier and analyze again.                                     |
+| Commit history      | [/history](http://localhost:4317/history)         | Compare Jev-only categorization with a Haiku-written changelog. Follow citations to source commits.           |
+| Context selection   | [/context](http://localhost:4317/context)         | Adjust the budget beside the full thread. Budget-archived turns collapse; expand or pin them to inspect.      |
+| Run replay          | [/replay](http://localhost:4317/replay)           | Compare productive progress, a repeated setup failure, and an unsupported success claim.                      |
 
 [Demo guide](docs/DEMO-GUIDE.md) contains suggested sequences and interpretation notes. [Validation notes](docs/VALIDATION.md) record observations from real calls.
 

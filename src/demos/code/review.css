@@ -219,6 +219,28 @@
 .review-score.is-marked strong {
   color: var(--review-tone);
 }
+.review-yes-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.review-yes-check {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text);
+  font-size: 12px;
+}
+.review-yes-check > svg {
+  flex-shrink: 0;
+}
+.review-check-red {
+  color: var(--red);
+}
+.review-check-amber {
+  color: var(--amber);
+}
 .review-evidence {
   padding: 10px 12px;
   border-top: 1px solid var(--border);
