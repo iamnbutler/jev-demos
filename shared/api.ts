@@ -48,7 +48,13 @@ export type JevResponse = {
   };
 };
 export type GenerationProvider = "openai" | "anthropic";
-export type GenerationTask = "workflow" | "report" | "discussion" | "code-query" | "context-task";
+export type GenerationTask =
+  | "workflow"
+  | "report"
+  | "discussion"
+  | "code-query"
+  | "context-task"
+  | "changelog";
 export type GenerateRequest = {
   provider: GenerationProvider;
   task: GenerationTask;

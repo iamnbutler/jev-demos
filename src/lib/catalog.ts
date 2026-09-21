@@ -17,15 +17,15 @@ export const demos: Demo[] = [
   },
   {
     id: "code-search",
-    title: "Code search",
-    shortTitle: "Code",
-    description: "Find functions by behavior.",
+    title: "Semantic Search",
+    shortTitle: "Semantic Search",
+    description: "Rank source functions as Jev evaluates them.",
   },
   {
     id: "review",
     title: "Review lenses",
-    shortTitle: "Review",
-    description: "Filter a diff by behavior, permissions, or test changes.",
+    shortTitle: "Review lenses",
+    description: "Decorate changed ranges with semantic review signals.",
   },
   {
     id: "duplicates",
@@ -43,7 +43,7 @@ export const demos: Demo[] = [
     id: "history",
     title: "Commit history",
     shortTitle: "History",
-    description: "Classify changes from their diffs.",
+    description: "Explore commits and build a changelog from their diffs.",
   },
   {
     id: "context",

@@ -1,0 +1,401 @@
+.ss-demo {
+  min-width: 0;
+}
+.ss-demo p {
+  margin: 0;
+}
+.ss-query-panel {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+.ss-corpus-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ss-corpus-control .select {
+  width: auto;
+  max-width: 100%;
+  font-size: 12px;
+}
+.ss-query-row {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+.ss-query-input {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+}
+.ss-run-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ss-query-tools {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ss-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ss-presets button {
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ss-presets button:hover,
+.ss-presets button.is-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ss-progress {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 3px;
+  font-size: 12px;
+}
+.ss-progress strong {
+  font-size: 13px;
+}
+.ss-progress progress {
+  width: 100%;
+  height: 5px;
+  appearance: none;
+  border: 0;
+  border-radius: 0;
+  background: var(--canvas);
+  accent-color: var(--accent);
+}
+.ss-progress progress::-webkit-progress-bar {
+  background: var(--canvas);
+}
+.ss-progress progress::-webkit-progress-value {
+  background: var(--accent);
+}
+.ss-progress progress::-moz-progress-bar {
+  background: var(--accent);
+}
+.ss-progress-detail,
+.ss-timing {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  color: var(--muted);
+}
+.ss-error {
+  color: var(--red);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.ss-batch-evidence {
+  padding: 0 2px;
+  display: grid;
+  gap: 6px;
+}
+.ss-batch-select {
+  min-width: 0;
+}
+.ss-batch-select .select {
+  width: auto;
+  max-width: 100%;
+  font-size: 12px;
+}
+.ss-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+  align-items: start;
+}
+.ss-results-panel,
+.ss-source-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+.ss-results-panel .panel-header,
+.ss-source-panel .panel-header {
+  align-items: center;
+}
+.ss-source-panel .panel-header h2 {
+  overflow-wrap: anywhere;
+}
+.ss-source-panel .panel-header p {
+  overflow-wrap: anywhere;
+}
+.ss-results-tools {
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.ss-results-tools .input {
+  width: 100%;
+}
+.ss-results {
+  max-height: 630px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.ss-result-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 36px 70px;
+  align-items: center;
+  gap: 8px;
+  min-height: 64px;
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--text);
+  background: var(--surface);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  font: inherit;
+  cursor: pointer;
+}
+.ss-result-row:hover {
+  background: var(--canvas);
+}
+.ss-result-row.is-selected {
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+}
+.ss-result-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.ss-rank {
+  color: var(--muted);
+  font: 12px var(--mono);
+  text-align: right;
+}
+.ss-result-name {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.ss-result-name strong {
+  font-size: 13px;
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.ss-result-name > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.ss-result-row .probability {
+  min-width: 0;
+}
+.ss-result-row .probability-track {
+  width: 24px;
+}
+.ss-result-row .probability-value {
+  min-width: 33px;
+  font-size: 12px;
+}
+.ss-movement {
+  display: inline-flex;
+  justify-content: flex-end;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  gap: 1px;
+}
+.ss-new {
+  color: var(--accent);
+}
+.ss-term-count {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  grid-column: 3 / 5;
+  font: 13px var(--mono);
+}
+.ss-term-count small {
+  font:
+    12px system-ui,
+    sans-serif;
+  color: var(--muted);
+}
+.ss-results-footer {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ss-empty {
+  padding: 24px 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ss-source-panel {
+  position: sticky;
+  top: 72px;
+}
+.ss-source-meta {
+  display: grid;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.ss-source-meta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ss-source-meta strong {
+  font-weight: 500;
+  color: var(--amber);
+}
+.ss-source-meta code {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ss-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  cursor: pointer;
+}
+.ss-follow input {
+  accent-color: var(--accent);
+  margin: 0;
+}
+.ss-source-panel > .code-block {
+  max-height: 440px;
+  overflow: auto;
+}
+.ss-source-panel .code-line code {
+  font-size: 13px;
+}
+.ss-source-editor {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+}
+.ss-source-editor textarea {
+  width: 100%;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ss-source-verdict {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+.ss-keywords {
+  display: grid;
+  gap: 6px;
+}
+.ss-keywords code {
+  padding: 2px 5px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+.ss-source-context {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  font-size: 12px;
+}
+.ss-source-context summary {
+  cursor: pointer;
+}
+.ss-source-context pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12px/1.6 var(--mono);
+}
+.ss-provenance {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 1000px) {
+  .ss-workspace {
+    grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+    gap: 12px;
+  }
+  .ss-result-row {
+    grid-template-columns: 22px minmax(0, 1fr) 30px 62px;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+  .ss-result-row.is-selected {
+    padding-left: 6px;
+  }
+  .ss-result-row .probability-track {
+    width: 18px;
+  }
+  .ss-results-panel .panel-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+@media (max-width: 760px) {
+  .ss-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ss-source-panel {
+    position: static;
+  }
+  .ss-results {
+    max-height: 425px;
+  }
+  .ss-query-panel {
+    padding: 12px;
+  }
+  .ss-corpus-control {
+    width: 100%;
+  }
+  .ss-corpus-control .select {
+    flex: 1;
+    min-width: 0;
+  }
+  .ss-query-row {
+    gap: 8px;
+  }
+  .ss-query-tools {
+    gap: 10px;
+  }
+  .ss-batch-select {
+    width: 100%;
+  }
+  .ss-batch-select .select {
+    min-width: 0;
+    flex: 1;
+  }
+  .ss-batch-select .small {
+    width: 100%;
+  }
+}

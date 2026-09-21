@@ -98,7 +98,7 @@ export async function handleRequest(request: Request): Promise<Response> {
   const extension = extname(filename);
   if (
     filename.startsWith(`${dist}/`) &&
-    [".js", ".css", ".svg", ".png", ".ico", ".woff2", ".json", ".txt"].includes(extension)
+    [".js", ".css", ".svg", ".png", ".ico", ".woff2", ".json", ".txt", ".md"].includes(extension)
   ) {
     const file = Bun.file(filename);
     if (await file.exists())

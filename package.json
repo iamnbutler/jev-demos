@@ -16,6 +16,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "0.127.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@pierre/diffs": "1.4.3",
     "dotenv": "^17.2.3",
     "lucide-react": "^1.38.0",
     "openai": "7.20.0",

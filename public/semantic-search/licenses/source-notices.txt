@@ -1,0 +1,87 @@
+honojs/hono / src/helper/css/common.ts
+https://github.com/honojs/hono/blob/52febbcc30bc509d5e4987577e63906fe08fc471/src/helper/css/common.ts
+
+/**
+ * Used the goober'code as a reference:
+ * https://github.com/cristianbote/goober/blob/master/src/core/to-hash.js
+ * MIT License, Copyright (c) 2019 Cristian Bote
+ */
+
+----------------------------------------
+
+vitejs/vite / packages/vite/src/node/build.ts
+https://github.com/vitejs/vite/blob/e9078f865cdff6bed77cd729214a7e2868f126b5/packages/vite/src/node/build.ts
+
+/*
+  The following functions are copied from rollup
+  https://github.com/rollup/rollup/blob/ce6cb93098850a46fa242e37b74a919e99a5de28/src/ast/nodes/MetaProperty.ts#L155-L203
+
+  https://github.com/rollup/rollup
+  The MIT License (MIT)
+  Copyright (c) 2017 [these people](https://github.com/rollup/rollup/graphs/contributors)
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+----------------------------------------
+
+vitejs/vite / packages/vite/src/node/optimizer/index.ts
+https://github.com/vitejs/vite/blob/e9078f865cdff6bed77cd729214a7e2868f126b5/packages/vite/src/node/optimizer/index.ts
+
+// The ISC License
+// Copyright (c) 2011-2022 Isaac Z. Schlueter, Ben Noordhuis, and Contributors
+// https://github.com/isaacs/node-graceful-fs/blob/234379906b7d2f4c9cfeb412d2516f42b0fb4953/LICENSE
+
+----------------------------------------
+
+vitejs/vite / packages/vite/src/node/server/openBrowser.ts
+https://github.com/vitejs/vite/blob/e9078f865cdff6bed77cd729214a7e2868f126b5/packages/vite/src/node/server/openBrowser.ts
+
+/**
+ * The following is modified based on source found in
+ * https://github.com/react/create-react-app
+ *
+ * MIT Licensed
+ * Copyright (c) 2015-present, Facebook, Inc.
+ * https://github.com/react/create-react-app/blob/main/LICENSE
+ *
+ */
+
+----------------------------------------
+
+vitejs/vite / packages/vite/src/node/server/pluginContainer.ts
+https://github.com/vitejs/vite/blob/e9078f865cdff6bed77cd729214a7e2868f126b5/packages/vite/src/node/server/pluginContainer.ts
+
+/**
+https://github.com/preactjs/wmr/blob/master/LICENSE
+
+MIT License
+
+Copyright (c) 2020 The Preact Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+*/
+
+----------------------------------------
+
+vitejs/vite / packages/vite/src/node/utils.ts
+https://github.com/vitejs/vite/blob/e9078f865cdff6bed77cd729214a7e2868f126b5/packages/vite/src/node/utils.ts
+
+// MIT License, Copyright (c) 2017 Larry Bahr

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   CircleDot,
@@ -49,6 +49,10 @@ export default function DuplicateDemo() {
     "Write a differently worded report about a stale preview session after restarting. Include a concrete trigger and recovery.",
   );
   const ev = useEvaluation();
+  const { run, reset } = ev;
+  const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const valid = Boolean(title.trim()) && body.trim().length >= 10;
+  const [waiting, setWaiting] = useState(false);
   const current = reports.find((report) => report.id === selected)!;
   const ranked = [...reports].sort(
     (a, b) => (getNoul(ev.data, `same_${b.id}`) ?? 0) - (getNoul(ev.data, `same_${a.id}`) ?? 0),
@@ -72,8 +76,12 @@ export default function DuplicateDemo() {
     setDismissed([]);
     ev.reset();
   }
-  async function compare() {
-    const result = await ev.run({
+  const compare = useCallback(async () => {
+    if (debounce.current !== null) clearTimeout(debounce.current);
+    debounce.current = null;
+    setWaiting(false);
+    if (!valid) return;
+    const result = await run({
       ...buildDuplicateRequest({ id: preset, label: "", title, body }),
       cache: false,
     });
@@ -83,7 +91,22 @@ export default function DuplicateDemo() {
       )[0];
       setSelected(first.id);
     }
-  }
+  }, [body, title, preset, valid, run]);
+
+  useEffect(() => {
+    reset();
+    if (!valid) {
+      setWaiting(false);
+      return;
+    }
+    setWaiting(true);
+    debounce.current = setTimeout(() => void compare(), 400);
+    return () => {
+      if (debounce.current !== null) clearTimeout(debounce.current);
+      debounce.current = null;
+      reset();
+    };
+  }, [compare, reset, valid]);
   function generateReport(text: string, response: GenerateResponse) {
     let parsed: unknown;
     try {
@@ -173,20 +196,24 @@ export default function DuplicateDemo() {
                 onChange={(e) => changeDraft(title, e.target.value)}
               />
             </div>
-            <Button
-              variant="primary"
-              loading={ev.loading}
-              disabled={!title.trim() || body.trim().length < 10}
-              onClick={compare}
-            >
-              <Scan size={15} />
-              {ev.loading ? "Comparing…" : "Compare"}
-              {!ev.loading && <ArrowRight size={14} />}
-            </Button>
+            <div className="row wrap spread">
+              <span className="small muted" role="status">
+                {!valid
+                  ? "Add a title and at least 10 description characters."
+                  : waiting
+                    ? "Waiting for typing to stop…"
+                    : "Live comparison · 400 ms debounce"}
+              </span>
+              <Button variant="primary" loading={ev.loading} disabled={!valid} onClick={compare}>
+                <Scan size={15} />
+                {ev.loading ? "Comparing…" : "Compare now"}
+                {!ev.loading && <ArrowRight size={14} />}
+              </Button>
+            </div>
             {generated && (
               <p className="small muted">
                 Drafted with {generated.model}.{" "}
-                {ev.data ? "Assessed by Jev." : "Run Compare to assess it."}
+                {ev.data ? "Assessed by Jev." : "Comparison updates automatically."}
               </p>
             )}
             <details className="duplicate-generate">
@@ -222,7 +249,11 @@ export default function DuplicateDemo() {
             description={
               ev.data
                 ? `${matches} possible duplicates · ${uncertain} need more detail`
-                : "Compare to see suggested relationships."
+                : ev.loading
+                  ? "Comparing the current draft…"
+                  : waiting
+                    ? "Updates after you stop typing."
+                    : "Add a report to see suggested relationships."
             }
             aside={
               <Badge tone={ev.data ? "green" : "neutral"}>

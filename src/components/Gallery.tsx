@@ -34,7 +34,7 @@ export default function Gallery() {
         ))}
       </div>
       <p className="hub-footnote">
-        Fictional examples, live judgments. Inputs and answers are inspectable in every demo.
+        Public source and authored examples. Live judgments with inspectable inputs and answers.
       </p>
     </div>
   );

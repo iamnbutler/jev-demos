@@ -1,0 +1,107 @@
+.history-changelog-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.history-changelog-body {
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.history-changelog-group + .history-changelog-group {
+  margin-top: 20px;
+}
+.history-changelog-group h3 {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.history-changelog-group h3 span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.history-changelog-group ul {
+  padding-left: 18px;
+  margin: 0;
+}
+.history-changelog-group li {
+  padding: 5px 0;
+}
+.history-changelog-group li > button {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--text);
+}
+.history-changelog-group li > button:hover span {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.history-changelog-group code {
+  color: var(--accent);
+  font-size: 12px;
+}
+.history-changelog-path {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.history-changelog-citations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.history-changelog-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  align-items: center;
+}
+.history-changelog-details {
+  font-size: 12px;
+  color: var(--muted);
+}
+.history-changelog-details summary {
+  cursor: pointer;
+  padding: 8px 0;
+}
+.history-changelog-details > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 0;
+}
+.history-changelog-details pre {
+  max-height: 400px;
+  overflow: auto;
+  font-size: 12px;
+  padding: 14px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 950px) {
+  .history-changelog-columns {
+    grid-template-columns: 1fr;
+  }
+}

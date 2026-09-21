@@ -30,6 +30,9 @@
 * {
   box-sizing: border-box;
 }
+[hidden] {
+  display: none !important;
+}
 body {
   margin: 0;
 }
@@ -784,7 +787,7 @@ pre {
     display: none;
   }
 }
-@media (max-width: 800px) {
+@media (max-width: 1000px) {
   .site-header {
     min-height: 49px;
     justify-content: space-between;

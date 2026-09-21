@@ -13,7 +13,6 @@ import {
 } from "../../components/ui";
 import { useEvaluation } from "../../lib/jev";
 import {
-  buildHistoryRequest,
   commitsAtRevision,
   diffCounts,
   historyQuestionKey,
@@ -28,11 +27,14 @@ import {
   type HistoryFacetId,
 } from "./history-data";
 import "./code.css";
+import HistoryChangelog from "./HistoryChangelog";
+import { buildChangelogRequest } from "./history-changelog";
 
 export { buildHistoryRequest } from "./analysis";
 
 export default function HistoryDemo() {
   const ev = useEvaluation();
+  const [view, setView] = useState("changelog");
   const [revisionId, setRevisionId] = useState(HISTORY_REVISIONS[1].id);
   const [facet, setFacet] = useState<HistoryFacetId | "all">("all");
   const [mode, setMode] = useState<"semantic" | "message">("semantic");
@@ -78,7 +80,10 @@ export default function HistoryDemo() {
               id="history-revision"
               className="select mono"
               value={revisionId}
-              onChange={(event) => setRevisionId(event.target.value)}
+              onChange={(event) => {
+                setRevisionId(event.target.value);
+                ev.reset();
+              }}
             >
               {HISTORY_REVISIONS.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -90,9 +95,9 @@ export default function HistoryDemo() {
           <Button
             variant="primary"
             loading={ev.loading}
-            onClick={() => void ev.run(buildHistoryRequest())}
+            onClick={() => void ev.run(buildChangelogRequest(included))}
           >
-            Analyze 24 commits
+            {view === "changelog" ? "Categorize" : "Analyze"} {included.length} commits
           </Button>
         </div>
         <div className="code-revision-strip">
@@ -107,270 +112,304 @@ export default function HistoryDemo() {
 
       <EvaluationBar evaluation={ev} label="Commit facets" />
 
-      <div className="code-history-controls">
-        <Segmented
-          value={mode}
-          onChange={(value) => setMode(value as "semantic" | "message")}
-          options={[
-            { value: "semantic", label: "Jev facets" },
-            { value: "message", label: "Message search" },
-          ]}
-          ariaLabel="History search method"
-        />
-        <label className="code-checkbox">
-          <input
-            type="checkbox"
-            checked={hideReversed}
-            onChange={(event) => setHideReversed(event.target.checked)}
-          />
-          <span>Hide reversed patches</span>
-        </label>
-      </div>
-
-      {mode === "semantic" ? (
-        <div className="code-history-facets">
-          <button
-            className={`code-history-facet ${facet === "all" ? "is-active" : ""}`}
-            type="button"
-            aria-pressed={facet === "all"}
-            onClick={() => setFacet("all")}
-          >
-            <span>All commits</span>
-            <strong>{included.length}</strong>
-          </button>
-          {HISTORY_FACETS.map((item) => {
-            const known = included.filter(
-              (commit) =>
-                readProbability(ev.data, historyQuestionKey(commit.id, item.id)) !== undefined,
-            ).length;
-            const count = included.filter(
-              (commit) =>
-                (readProbability(ev.data, historyQuestionKey(commit.id, item.id)) ?? -1) >=
-                threshold,
-            ).length;
-            return (
-              <button
-                className={`code-history-facet ${facet === item.id ? "is-active" : ""}`}
-                type="button"
-                aria-pressed={facet === item.id}
-                key={item.id}
-                onClick={() => setFacet(item.id)}
-                title={
-                  known
-                    ? `${known}/${included.length} assessed · ≥${Math.round(threshold * 100)}%`
-                    : "Not assessed"
-                }
-              >
-                <span>{item.label}</span>
-                <strong>{known ? count : "—"}</strong>
-              </button>
+      <Segmented
+        value={view}
+        onChange={setView}
+        ariaLabel="History view"
+        options={[
+          { value: "changelog", label: "Changelog" },
+          { value: "history", label: "Explore commits" },
+        ]}
+      />
+      <div hidden={view !== "changelog"}>
+        <HistoryChangelog
+          key={`${revisionId}-${ev.data?.meta.requestId ?? "pending"}`}
+          commits={included}
+          revision={revision.label}
+          data={ev.data}
+          onSource={(id) => {
+            setSelectedId(id);
+            setFacet("all");
+            setMode("semantic");
+            setHideReversed(false);
+            setView("history");
+            requestAnimationFrame(() =>
+              document.getElementById("history-source")?.scrollIntoView({
+                block: "start",
+                behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                  ? "instant"
+                  : "smooth",
+              }),
             );
-          })}
-        </div>
-      ) : (
-        <Panel>
-          <div className="code-message-search">
-            <Search size={18} />
-            <label className="sr-only" htmlFor="history-message-search">
-              Search commit messages
-            </label>
-            <input
-              id="history-message-search"
-              className="input"
-              value={messageQuery}
-              onChange={(event) => setMessageQuery(event.target.value)}
-              placeholder="Search only the commit messages…"
-            />
-            <span className="small muted">Literal substring · {filtered.length} found</span>
-          </div>
-        </Panel>
-      )}
-
-      <div className="row wrap spread small muted">
-        <span>
-          {filtered.length} visible of {included.length} included commits
-          {unknownCount ? ` · ${unknownCount} still unassessed` : ""}
-          {hideReversed ? ` · ${reversed.size} reversed patches hidden` : ""}
-        </span>
-        {mode === "semantic" && (
-          <label className="code-inline-threshold" htmlFor="history-threshold">
-            Threshold ≥{Math.round(threshold * 100)}%
-            <input
-              id="history-threshold"
-              className="code-range"
-              type="range"
-              min="0.35"
-              max="0.95"
-              step="0.05"
-              value={threshold}
-              onChange={(event) => setThreshold(Number(event.target.value))}
-            />
-          </label>
-        )}
+          }}
+        />
       </div>
+      <div className="stack" hidden={view !== "history"}>
+        <div className="code-history-controls">
+          <Segmented
+            value={mode}
+            onChange={(value) => setMode(value as "semantic" | "message")}
+            options={[
+              { value: "semantic", label: "Jev facets" },
+              { value: "message", label: "Message search" },
+            ]}
+            ariaLabel="History search method"
+          />
+          <label className="code-checkbox">
+            <input
+              type="checkbox"
+              checked={hideReversed}
+              onChange={(event) => setHideReversed(event.target.checked)}
+            />
+            <span>Hide reversed patches</span>
+          </label>
+        </div>
 
-      <div className="code-history-layout">
-        <Panel className="code-timeline-panel">
-          <PanelHeader title="Commits" description="Newest first" />
-          {filtered.length ? (
-            <div className="code-commit-list">
-              {filtered.map((commit, index) => {
-                const reversal = reversed.get(commit.id);
-                const probability =
-                  facet !== "all" && mode === "semantic"
-                    ? readProbability(ev.data, historyQuestionKey(commit.id, facet))
-                    : undefined;
-                const showDate = index === 0 || filtered[index - 1].date !== commit.date;
-                return (
-                  <div key={commit.id}>
-                    {showDate && (
-                      <div className="code-commit-date">
-                        {new Date(`${commit.date}T12:00:00Z`).toLocaleDateString("en", {
-                          month: "short",
-                          day: "numeric",
-                          timeZone: "UTC",
-                        })}
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className={`code-commit ${selected?.id === commit.id ? "is-selected" : ""} ${reversal ? "is-reversed" : ""}`}
-                      aria-pressed={selected?.id === commit.id}
-                      onClick={() => setSelectedId(commit.id)}
-                    >
-                      <span className="code-commit-node">
-                        {commit.reverts ? <Undo2 size={15} /> : <GitCommitHorizontal size={15} />}
-                      </span>
-                      <span className="code-commit-content">
-                        <strong>{commit.message}</strong>
-                        <span>
-                          <code>{commit.sha}</code> · {commit.author}
-                          {reversal
-                            ? ` · reversed by ${reversal.sha}`
-                            : commit.reverts
-                              ? " · explicit revert"
-                              : ""}
-                        </span>
-                        <small>{commit.path}</small>
-                      </span>
-                      {facet !== "all" && mode === "semantic" ? (
-                        <Probability value={probability} compact />
-                      ) : (
-                        <ChevronRight size={15} />
-                      )}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="code-history-empty">
-              <EmptyState
-                icon={<Search size={22} />}
-                title={mode === "message" ? "No messages matched" : "No commits in focus"}
-                description={
-                  mode === "message"
-                    ? "These messages conceal the substance of the patches. Try the Access control facet to inspect what changed."
-                    : "No assessed commits meet this combination of filters."
-                }
+        {mode === "semantic" ? (
+          <div className="code-history-facets">
+            <button
+              className={`code-history-facet ${facet === "all" ? "is-active" : ""}`}
+              type="button"
+              aria-pressed={facet === "all"}
+              onClick={() => setFacet("all")}
+            >
+              <span>All commits</span>
+              <strong>{included.length}</strong>
+            </button>
+            {HISTORY_FACETS.map((item) => {
+              const known = included.filter(
+                (commit) =>
+                  readProbability(ev.data, historyQuestionKey(commit.id, item.id)) !== undefined,
+              ).length;
+              const count = included.filter(
+                (commit) =>
+                  (readProbability(ev.data, historyQuestionKey(commit.id, item.id)) ?? -1) >=
+                  threshold,
+              ).length;
+              return (
+                <button
+                  className={`code-history-facet ${facet === item.id ? "is-active" : ""}`}
+                  type="button"
+                  aria-pressed={facet === item.id}
+                  key={item.id}
+                  onClick={() => setFacet(item.id)}
+                  title={
+                    known
+                      ? `${known}/${included.length} assessed · ≥${Math.round(threshold * 100)}%`
+                      : "Not assessed"
+                  }
+                >
+                  <span>{item.label}</span>
+                  <strong>{known ? count : "—"}</strong>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <Panel>
+            <div className="code-message-search">
+              <Search size={18} />
+              <label className="sr-only" htmlFor="history-message-search">
+                Search commit messages
+              </label>
+              <input
+                id="history-message-search"
+                className="input"
+                value={messageQuery}
+                onChange={(event) => setMessageQuery(event.target.value)}
+                placeholder="Search only the commit messages…"
               />
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setMode("semantic");
-                  setFacet("permissions");
-                  setHideReversed(false);
-                }}
-              >
-                Inspect access-control changes <ArrowUpRight size={14} />
-              </Button>
+              <span className="small muted">Literal substring · {filtered.length} found</span>
             </div>
+          </Panel>
+        )}
+
+        <div className="row wrap spread small muted">
+          <span>
+            {filtered.length} visible of {included.length} included commits
+            {unknownCount ? ` · ${unknownCount} still unassessed` : ""}
+            {hideReversed ? ` · ${reversed.size} reversed patches hidden` : ""}
+          </span>
+          {mode === "semantic" && (
+            <label className="code-inline-threshold" htmlFor="history-threshold">
+              Threshold ≥{Math.round(threshold * 100)}%
+              <input
+                id="history-threshold"
+                className="code-range"
+                type="range"
+                min="0.35"
+                max="0.95"
+                step="0.05"
+                value={threshold}
+                onChange={(event) => setThreshold(Number(event.target.value))}
+              />
+            </label>
           )}
-        </Panel>
+        </div>
 
-        <Panel className="code-commit-detail">
-          {selected ? (
-            <>
-              <PanelHeader
-                title={selected.message}
-                description={`${selected.sha} · ${selected.author} · ${selected.date}`}
-              />
-              <div className="code-commit-membership row wrap">
-                <Badge tone="green">Included in {revision.label}</Badge>
-                {undoneBy && <Badge tone="amber">Patch reversed later</Badge>}
-                {selected.reverts && <Badge tone="purple">Reverts a prior patch</Badge>}
-              </div>
-              {undoneBy && (
-                <div className="code-revert-notice">
-                  <Undo2 size={16} />
-                  <div>
-                    <strong>Patch reversed</strong>
-                    <p>
-                      Reverted by{" "}
+        <div className="code-history-layout">
+          <Panel className="code-timeline-panel">
+            <PanelHeader title="Commits" description="Newest first" />
+            {filtered.length ? (
+              <div className="code-commit-list">
+                {filtered.map((commit, index) => {
+                  const reversal = reversed.get(commit.id);
+                  const probability =
+                    facet !== "all" && mode === "semantic"
+                      ? readProbability(ev.data, historyQuestionKey(commit.id, facet))
+                      : undefined;
+                  const showDate = index === 0 || filtered[index - 1].date !== commit.date;
+                  return (
+                    <div key={commit.id}>
+                      {showDate && (
+                        <div className="code-commit-date">
+                          {new Date(`${commit.date}T12:00:00Z`).toLocaleDateString("en", {
+                            month: "short",
+                            day: "numeric",
+                            timeZone: "UTC",
+                          })}
+                        </div>
+                      )}
                       <button
                         type="button"
-                        onClick={() => {
-                          setSelectedId(undoneBy.id);
-                          setFacet("all");
-                          setMode("semantic");
-                          setHideReversed(false);
-                        }}
+                        className={`code-commit ${selected?.id === commit.id ? "is-selected" : ""} ${reversal ? "is-reversed" : ""}`}
+                        aria-pressed={selected?.id === commit.id}
+                        onClick={() => setSelectedId(commit.id)}
                       >
-                        {undoneBy.sha}
+                        <span className="code-commit-node">
+                          {commit.reverts ? <Undo2 size={15} /> : <GitCommitHorizontal size={15} />}
+                        </span>
+                        <span className="code-commit-content">
+                          <strong>{commit.message}</strong>
+                          <span>
+                            <code>{commit.sha}</code> · {commit.author}
+                            {reversal
+                              ? ` · reversed by ${reversal.sha}`
+                              : commit.reverts
+                                ? " · explicit revert"
+                                : ""}
+                          </span>
+                          <small>{commit.path}</small>
+                        </span>
+                        {facet !== "all" && mode === "semantic" ? (
+                          <Probability value={probability} compact />
+                        ) : (
+                          <ChevronRight size={15} />
+                        )}
                       </button>
-                      . The commit remains in this revision’s history.
-                    </p>
-                  </div>
-                </div>
-              )}
-              {revertsCommit && (
-                <div className="code-revert-notice">
-                  <Undo2 size={16} />
-                  <div>
-                    <strong>Reversal of {revertsCommit.sha}</strong>
-                    <p>
-                      This patch undoes “{revertsCommit.message}.” Both commits are included in this
-                      revision.
-                    </p>
-                  </div>
-                </div>
-              )}
-              <div className="code-commit-facets">
-                {HISTORY_FACETS.map((item) => (
-                  <div key={item.id}>
-                    <span>{item.label}</span>
-                    <Probability
-                      value={readProbability(ev.data, historyQuestionKey(selected.id, item.id))}
-                      compact
-                    />
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
-              <div className="code-commit-file row spread">
-                <code>{selected.path}</code>
-                <span className="code-hunk-lines">
-                  <span>+{selectedCounts?.added}</span>
-                  <span>−{selectedCounts?.removed}</span>
-                </span>
+            ) : (
+              <div className="code-history-empty">
+                <EmptyState
+                  icon={<Search size={22} />}
+                  title={mode === "message" ? "No messages matched" : "No commits in focus"}
+                  description={
+                    mode === "message"
+                      ? "These messages conceal the substance of the patches. Try the Access control facet to inspect what changed."
+                      : "No assessed commits meet this combination of filters."
+                  }
+                />
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setMode("semantic");
+                    setFacet("permissions");
+                    setHideReversed(false);
+                  }}
+                >
+                  Inspect access-control changes <ArrowUpRight size={14} />
+                </Button>
               </div>
-              <CodeBlock code={selected.diff} language="diff" />
-              {selected.context && (
-                <div className="code-hunk-context">
-                  <strong>Code contract</strong>
-                  <p>{selected.context}</p>
+            )}
+          </Panel>
+
+          <Panel id="history-source" className="code-commit-detail">
+            {selected ? (
+              <>
+                <PanelHeader
+                  title={selected.message}
+                  description={`${selected.sha} · ${selected.author} · ${selected.date}`}
+                />
+                <div className="code-commit-membership row wrap">
+                  <Badge tone="green">Included in {revision.label}</Badge>
+                  {undoneBy && <Badge tone="amber">Patch reversed later</Badge>}
+                  {selected.reverts && <Badge tone="purple">Reverts a prior patch</Badge>}
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="code-history-empty">
-              <EmptyState
-                icon={<GitCommitHorizontal size={25} />}
-                title="Select a commit"
-                description="Change the filters to inspect a patch and its live semantic judgments."
-              />
-            </div>
-          )}
-        </Panel>
+                {undoneBy && (
+                  <div className="code-revert-notice">
+                    <Undo2 size={16} />
+                    <div>
+                      <strong>Patch reversed</strong>
+                      <p>
+                        Reverted by{" "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedId(undoneBy.id);
+                            setFacet("all");
+                            setMode("semantic");
+                            setHideReversed(false);
+                          }}
+                        >
+                          {undoneBy.sha}
+                        </button>
+                        . The commit remains in this revision’s history.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {revertsCommit && (
+                  <div className="code-revert-notice">
+                    <Undo2 size={16} />
+                    <div>
+                      <strong>Reversal of {revertsCommit.sha}</strong>
+                      <p>
+                        This patch undoes “{revertsCommit.message}.” Both commits are included in
+                        this revision.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="code-commit-facets">
+                  {HISTORY_FACETS.map((item) => (
+                    <div key={item.id}>
+                      <span>{item.label}</span>
+                      <Probability
+                        value={readProbability(ev.data, historyQuestionKey(selected.id, item.id))}
+                        compact
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div className="code-commit-file row spread">
+                  <code>{selected.path}</code>
+                  <span className="code-hunk-lines">
+                    <span>+{selectedCounts?.added}</span>
+                    <span>−{selectedCounts?.removed}</span>
+                  </span>
+                </div>
+                <CodeBlock code={selected.diff} language="diff" />
+                {selected.context && (
+                  <div className="code-hunk-context">
+                    <strong>Code contract</strong>
+                    <p>{selected.context}</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="code-history-empty">
+                <EmptyState
+                  icon={<GitCommitHorizontal size={25} />}
+                  title="Select a commit"
+                  description="Change the filters to inspect a patch and its live semantic judgments."
+                />
+              </div>
+            )}
+          </Panel>
+        </div>
       </div>
 
       <div className="code-provenance">

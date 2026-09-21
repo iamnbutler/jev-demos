@@ -1,0 +1,47 @@
+.diffview {
+  min-width: 0;
+  --diffs-font-family: var(--mono);
+  --diffs-font-size: 13px;
+  --diffs-line-height: 22px;
+  --diffs-tab-size: 2;
+  --diffs-header-font-family: inherit;
+  --diffs-gap-block: 8px;
+  --diffs-gap-inline: 12px;
+  --diffs-addition-color-override: var(--green);
+  --diffs-deletion-color-override: var(--red);
+  --diffs-selection-color-override: var(--blue);
+  --diffs-bg-selection-override: var(--blue-soft);
+}
+.diffview diffs-container {
+  display: block;
+  min-width: 0;
+}
+.diffview-note {
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 12px;
+  color: var(--text);
+  background: var(--surface);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.diffview-note button {
+  font: inherit;
+}
+.diffview-loading {
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 560px) {
+  .diffview {
+    --diffs-gap-inline: 8px;
+    --diffs-min-number-column-width: 3ch;
+  }
+  .diffview-note {
+    padding: 8px;
+  }
+}

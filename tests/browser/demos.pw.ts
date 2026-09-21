@@ -19,6 +19,13 @@ const test = base.extend<{ mockProviders: void }>({
           });
           return;
         }
+        if (new URL(route.request().url()).pathname === "/api/evaluate") {
+          const input = route.request().postDataJSON() as JevRequest;
+          if (input.tag === "duplicate-constellation") {
+            await route.fulfill({ json: mockedDuplicateEvaluation(input) });
+            return;
+          }
+        }
         unexpected.push(route.request().url());
         await route.fulfill({ status: 503, json: { error: "Unmocked API call blocked by test." } });
       });
@@ -32,7 +39,7 @@ const test = base.extend<{ mockProviders: void }>({
 
 const demos = [
   { route: "actions", title: "Workflow scanner" },
-  { route: "code-search", title: "Code search" },
+  { route: "code-search", title: "Semantic Search" },
   { route: "review", title: "Review lenses" },
   { route: "duplicates", title: "Duplicate reports" },
   { route: "discussion", title: "Discussion timeline" },
@@ -81,6 +88,44 @@ function mockedDraft(text: string): GenerateResponse {
   };
 }
 
+function mockedDuplicateEvaluation(request: JevRequest): JevResponse {
+  return {
+    model: "mock-jev-for-auto-comparison",
+    answers: Object.fromEntries(
+      Object.entries(request.questions).map(([id, question]) => {
+        if (question.type === "noul") return [id, { type: "noul", noul: 0.6 }];
+        if (question.type !== "choice") throw new Error("Unexpected duplicate primitive");
+        const keys = Object.keys(question.criteria);
+        return [
+          id,
+          {
+            type: "choice",
+            choice: keys[0],
+            confidence: 0.8,
+            probabilities: Object.fromEntries(
+              keys.map((key, index) => [key, index === 0 ? 0.9 : 0.1 / (keys.length - 1)]),
+            ),
+          },
+        ];
+      }),
+    ),
+    usage: { input_tokens: 1, output_tokens: 1 },
+    meta: {
+      requestId: "mock-auto-duplicate",
+      providerMs: 1,
+      totalMs: 1,
+      cached: false,
+      questionCount: Object.keys(request.questions).length,
+      at: "2026-09-20T12:00:00Z",
+    },
+  };
+}
+
+async function openSemanticFixture(page: Page) {
+  await page.goto("/code-search");
+  await page.getByRole("combobox", { name: "Corpus", exact: true }).selectOption("fixture");
+}
+
 function mockedCodeEvaluation(
   request: JevRequest,
   requestId: string,
@@ -106,7 +151,7 @@ function mockedCodeEvaluation(
 
 async function expectDemoReady(page: Page, title: string) {
   await expect(page.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
-  await expect(page.locator(".experiment > .stack")).toBeVisible();
+  await expect(page.locator(".experiment .panel").first()).toBeVisible();
   await expect(page.getByText("This demo hit an error.", { exact: true })).toHaveCount(0);
 }
 
@@ -157,10 +202,11 @@ test.describe("mocked evaluation evidence", () => {
       result = mockedCodeEvaluation(submitted, "mock-evidence");
       await route.fulfill({ json: result });
     });
-    await page.goto("/code-search");
+    await openSemanticFixture(page);
     const query = 'Find behavior containing literal <script> text & quoted "words".';
     await page.getByRole("textbox", { name: "Query", exact: true }).fill(query);
     await page.getByRole("button", { name: "Analyze", exact: true }).click();
+    await expect(page.locator(".ss-progress")).toHaveAttribute("data-status", "complete");
     const inspect = page.getByRole("button", { name: "Inspect evaluation", exact: true });
     await expect(inspect).toBeVisible();
     expect(submitted).toBeDefined();
@@ -188,7 +234,7 @@ test.describe("mocked evaluation evidence", () => {
 test.describe("mocked writer races", () => {
   test("Code preserves a query edited while an older draft is in flight", async ({ page }) => {
     const pending = await holdResponse<GenerateRequest, GenerateResponse>(page, "generate");
-    await page.goto("/code-search");
+    await openSemanticFixture(page);
     await page.getByRole("button", { name: "Draft query", exact: true }).click();
     expect((await pending.submitted).task).toBe("code-query");
     const query = page.getByRole("textbox", { name: "Query", exact: true });
@@ -272,7 +318,7 @@ test("mocked evaluation completing after an edit cannot apply stale answers", as
     };
   });
   const pending = await holdResponse<JevRequest, JevResponse>(page, "evaluate");
-  await page.goto("/code-search");
+  await openSemanticFixture(page);
   await page.getByRole("button", { name: "Analyze", exact: true }).click();
   const submitted = await pending.submitted;
   const query = page.getByRole("textbox", { name: "Query", exact: true });
@@ -290,10 +336,10 @@ test("mocked evaluation completing after an edit cannot apply stale answers", as
       }),
   );
   await expect(query).toHaveValue("A newer predicate that has not been evaluated");
-  await expect(page.locator(".evaluation-bar")).toContainText("Not evaluated");
+  await expect(page.locator(".ss-progress")).toContainText("Not evaluated");
   await expect(page.getByRole("button", { name: "Inspect evaluation", exact: true })).toHaveCount(
     0,
   );
-  await expect(page.locator(".code-result-row .probability-value")).toHaveText(Array(16).fill("—"));
+  await expect(page.locator(".ss-result-row .probability-value")).toHaveText(Array(16).fill("—"));
   await expect(page.getByRole("button", { name: "Analyze", exact: true })).toBeEnabled();
 });

@@ -11,12 +11,18 @@ import { buildContextRequest } from "../src/demos/agents/context";
 import { CONTEXT_TURNS, DEFAULT_CONTEXT_TASK } from "../src/demos/agents/context-data";
 import { buildReplayRequest } from "../src/demos/agents/replay";
 import { RUN_TRACES } from "../src/demos/agents/replay-data";
+import { buildReviewRequest } from "../src/demos/code/analysis";
 import {
-  buildCodeSearchRequest,
-  buildHistoryRequest,
-  buildReviewRequest,
-} from "../src/demos/code/analysis";
-import { CODE_QUERIES, SOURCE_FUNCTIONS } from "../src/demos/code/source-data";
+  buildChangelogRequest,
+  canceledCommitIds,
+  changelogContext,
+  groupChangelog,
+  parseWrittenChangelog,
+} from "../src/demos/code/history-changelog";
+import { HISTORY_COMMITS, HISTORY_REVISIONS } from "../src/demos/code/history-data";
+import { SEMANTIC_PRESETS, type SearchCorpus } from "../src/demos/code/semantic-corpus";
+import { createSearchBatches, SEARCH_BATCH_SIZE } from "../src/demos/code/semantic-search";
+import { SOURCE_FUNCTIONS } from "../src/demos/code/source-data";
 import { buildDiscussionRequest } from "../src/demos/discussion/analysis";
 import { buildDuplicateRequest } from "../src/demos/duplicates/analysis";
 
@@ -27,6 +33,7 @@ type EvaluationResult = {
   answers: number;
   providerMs: number;
   totalMs: number;
+  response: JevResponse;
 };
 
 function check(condition: unknown, message: string): asserts condition {
@@ -173,7 +180,20 @@ async function jsonRequest(url: URL, body?: unknown): Promise<unknown> {
   }
 }
 
-function requests(): { name: string; request: JevRequest }[] {
+async function requests(): Promise<{ name: string; request: JevRequest }[]> {
+  const corpus: SearchCorpus = await Bun.file(
+    new URL("../public/semantic-search/corpus.json", import.meta.url),
+  ).json();
+  check(corpus.schema === 1 && Array.isArray(corpus.functions), "Invalid public search corpus.");
+  nonempty(corpus.provenance, "Public corpus provenance");
+  // Exercise the demo's real batching/builder on at most 24 public excerpts.
+  // Neither queue nor evaluate the rest of the 2,414-function corpus here.
+  const batch = createSearchBatches(
+    SEMANTIC_PRESETS[0].query,
+    corpus.functions.slice(0, SEARCH_BATCH_SIZE),
+    { provenance: corpus.provenance },
+  )[0];
+  check(batch && batch.candidateIds.length > 0, "The public corpus needs a search batch.");
   const trace = RUN_TRACES[0];
   const checkpoint = trace.events.findIndex(
     (event) => event.kind === "tool" && event.exitCode === 1,
@@ -181,11 +201,11 @@ function requests(): { name: string; request: JevRequest }[] {
   check(checkpoint >= 0, "The replay fixture needs a failed tool-event checkpoint.");
   return [
     { name: "Workflows", request: buildActionsRequest() },
-    { name: "Code", request: buildCodeSearchRequest(CODE_QUERIES[0].query) },
+    { name: "Semantic", request: batch.request },
     { name: "Review", request: buildReviewRequest() },
     { name: "Duplicates", request: buildDuplicateRequest() },
     { name: "Discussion", request: buildDiscussionRequest() },
-    { name: "History", request: buildHistoryRequest() },
+    { name: "History", request: buildChangelogRequest(HISTORY_COMMITS) },
     { name: "Context", request: buildContextRequest(DEFAULT_CONTEXT_TASK, CONTEXT_TURNS) },
     { name: "Replay", request: buildReplayRequest(trace, checkpoint) },
   ];
@@ -201,7 +221,18 @@ async function evaluate(base: URL, name: string, request: JevRequest): Promise<E
     answers: Object.keys(result.answers).length,
     providerMs: result.meta.providerMs,
     totalMs: Math.round(performance.now() - started),
+    response: result,
   };
+}
+
+async function generate(base: URL, input: GenerateRequest): Promise<GenerateResponse> {
+  const result = object(await jsonRequest(new URL("api/generate", base), input), "Writer response");
+  check(result.provider === input.provider, "Writer response names the wrong provider.");
+  nonempty(result.model, "Writer model");
+  nonempty(result.text, "Draft text");
+  finite(result.durationMs, "Writer duration");
+  usage(result.usage);
+  return result as GenerateResponse;
 }
 
 async function writer(base: URL, provider: GenerationProvider): Promise<GenerateResponse> {
@@ -215,20 +246,44 @@ async function writer(base: URL, provider: GenerationProvider): Promise<Generate
       functions: SOURCE_FUNCTIONS.slice(0, 2),
     },
   };
-  const result = object(await jsonRequest(new URL("api/generate", base), input), "Writer response");
-  check(result.provider === provider, "Writer response names the wrong provider.");
-  nonempty(result.model, "Writer model");
-  nonempty(result.text, "Draft text");
-  finite(result.durationMs, "Writer duration");
-  usage(result.usage);
-  return result as GenerateResponse;
+  return generate(base, input);
+}
+
+async function changelogWriter(base: URL, history: JevResponse) {
+  const canceled = canceledCommitIds(HISTORY_COMMITS);
+  const excluded = HISTORY_COMMITS.filter((commit) => canceled.has(commit.id));
+  const groups = groupChangelog(HISTORY_COMMITS, history, true);
+  const revision = HISTORY_REVISIONS.find(
+    (item) => item.lastCommitId === HISTORY_COMMITS.at(-1)?.id,
+  );
+  check(revision && groups.length, "The History response needs a matching revision and groups.");
+  const result = await generate(base, {
+    provider: "anthropic",
+    task: "changelog",
+    prompt:
+      "Write an organized changelog from these Jev-classified patches. Preserve every category and cite every included commit. Return the requested JSON only.",
+    context: changelogContext(groups, revision.label, excluded),
+  });
+  // The same parser as the UI checks category preservation, complete coverage,
+  // exact commit citations, and exclusion of canceled/cross-category commits.
+  const written = parseWrittenChangelog(result.text, groups);
+  const citations = new Set(
+    written.sections.flatMap((section) => section.entries.flatMap((entry) => entry.commits)),
+  );
+  return {
+    model: result.model,
+    durationMs: result.durationMs,
+    categories: written.sections.length,
+    commits: citations.size,
+    excluded: excluded.length,
+  };
 }
 
 async function main() {
   const args = new Set(Bun.argv.slice(2));
   if (args.has("--help")) {
     console.log(
-      "Usage: bun scripts/live-check.ts [--writers]\nDEMO_URL defaults to http://127.0.0.1:4317.\nRuns eight uncached evaluations of authored fixtures; --writers also checks each configured writer.",
+      "Usage: bun scripts/live-check.ts [--writers]\nDEMO_URL defaults to http://127.0.0.1:4317.\nRuns eight uncached evaluations: one bounded public-source search batch plus authored demo inputs.\n--writers also checks configured OpenAI/Claude query writers and the Jev → Haiku changelog handoff, reusing the History evaluation.",
     );
     return;
   }
@@ -237,13 +292,16 @@ async function main() {
     "Supported option: --writers. Use --help for usage.",
   );
   const base = baseUrl();
-  const cases = requests();
-  console.log(`Live integration checks · ${base.origin}${base.pathname} · authored fixtures`);
+  const cases = await requests();
+  console.log(
+    `Live integration checks · ${base.origin}${base.pathname} · public source + authored inputs`,
+  );
   console.log("Checks response contracts and timing; no expected model judgments.");
   const results = await Promise.allSettled(
     cases.map((item) => evaluate(base, item.name, item.request)),
   );
   let failed = 0;
+  const successful = new Map<string, JevResponse>();
   for (const [index, result] of results.entries()) {
     const label = cases[index].name.padEnd(11);
     if (result.status === "rejected") {
@@ -254,6 +312,7 @@ async function main() {
       continue;
     }
     const check = result.value;
+    successful.set(check.name, check.response);
     console.log(
       `PASS ${label} ${String(check.answers).padStart(2)} answers · ${check.model} · provider ${check.providerMs} ms · total ${check.totalMs} ms`,
     );
@@ -264,9 +323,11 @@ async function main() {
 
   if (args.has("--writers")) {
     const health = object(await jsonRequest(new URL("api/health", base)), "Health response");
+    let anthropicConfigured = false;
     for (const provider of ["openai", "anthropic"] as const) {
       const status = object(health[provider], `${provider} health`);
       check(typeof status.configured === "boolean", `${provider} health is invalid.`);
+      if (provider === "anthropic") anthropicConfigured = status.configured;
       if (!status.configured) {
         console.log(`SKIP writer ${provider}: no server credential configured.`);
         continue;
@@ -280,6 +341,24 @@ async function main() {
         failed++;
         console.error(
           `FAIL writer ${provider}: ${error instanceof Error ? error.message : "Check failed."}`,
+        );
+      }
+    }
+    const history = successful.get("History");
+    if (!anthropicConfigured) {
+      console.log("SKIP changelog handoff: no Anthropic server credential configured.");
+    } else if (!history) {
+      console.log("SKIP changelog handoff: the History evaluation did not pass.");
+    } else {
+      try {
+        const result = await changelogWriter(base, history);
+        console.log(
+          `PASS changelog Jev → ${result.model} · ${result.durationMs} ms writer · ${result.categories} categories · ${result.commits} cited commits · ${result.excluded} canceled commits excluded · History first pass reused`,
+        );
+      } catch (error) {
+        failed++;
+        console.error(
+          `FAIL changelog handoff: ${error instanceof Error ? error.message : "Check failed."}`,
         );
       }
     }

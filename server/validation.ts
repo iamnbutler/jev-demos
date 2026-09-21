@@ -38,7 +38,7 @@ export const evaluationSchema = z.object({
 
 export const generationSchema = z.object({
   provider: z.enum(["openai", "anthropic"]),
-  task: z.enum(["workflow", "report", "discussion", "code-query", "context-task"]),
+  task: z.enum(["workflow", "report", "discussion", "code-query", "context-task", "changelog"]),
   prompt: z.string().min(3).max(12000),
   context: z.unknown().optional(),
 });

@@ -1,249 +1,241 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import {
-  Badge,
-  Button,
-  CodeBlock,
-  EvaluationBar,
-  Panel,
-  PanelHeader,
-  Probability,
-} from "../../components/ui";
+import { Badge, Button, EvaluationBar, Panel, Segmented } from "../../components/ui";
+import { DiffView, type DiffNote } from "../../components/DiffView";
 import { useEvaluation } from "../../lib/jev";
-import {
-  buildReviewRequest,
-  diffCounts,
-  readProbability,
-  reviewQuestionKey,
-  strongestProbability,
-} from "./analysis";
+import { buildReviewRequest, diffCounts } from "./analysis";
+import { LENS_TONES, parseReviewDiff, rangeLabel, reviewDecoration } from "./review-decoration";
 import { REVIEW_CONTEXT, REVIEW_HUNKS, REVIEW_LENSES, type ReviewLensId } from "./review-data";
-import "./code.css";
+import "./review.css";
 
 export { buildReviewRequest } from "./analysis";
 
+const parsedDiffs = new Map(REVIEW_HUNKS.map((hunk) => [hunk.id, parseReviewDiff(hunk)]));
+const totals = REVIEW_HUNKS.reduce(
+  (sum, hunk) => {
+    const counts = diffCounts(hunk.diff);
+    return { added: sum.added + counts.added, removed: sum.removed + counts.removed };
+  },
+  { added: 0, removed: 0 },
+);
+
 export default function ReviewDemo() {
   const ev = useEvaluation();
-  const [lenses, setLenses] = useState<ReviewLensId[]>(["behavior"]);
+  const [lenses, setLenses] = useState<ReviewLensId[]>(REVIEW_LENSES.map((lens) => lens.id));
   const [threshold, setThreshold] = useState(0.65);
-  const [foldOthers, setFoldOthers] = useState(true);
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-  const counts = REVIEW_HUNKS.reduce(
-    (sum, hunk) => {
-      const hunkCounts = diffCounts(hunk.diff);
-      return { added: sum.added + hunkCounts.added, removed: sum.removed + hunkCounts.removed };
-    },
-    { added: 0, removed: 0 },
+  const [mode, setMode] = useState("decorate");
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const assessed = useMemo(
+    () =>
+      REVIEW_HUNKS.map((hunk) => ({ hunk, ...reviewDecoration(hunk, ev.data, lenses, threshold) })),
+    [ev.data, lenses, threshold],
   );
-  const assessed = REVIEW_HUNKS.map((hunk) => {
-    const values = lenses.map((lens) => readProbability(ev.data, reviewQuestionKey(hunk.id, lens)));
-    const probability = strongestProbability(values);
-    return {
-      hunk,
-      probability,
-      unknown: values.some((value) => value === undefined),
-      matches: !lenses.length || (probability !== undefined && probability >= threshold),
-    };
-  });
-  const focusedCount = assessed.filter((item) => item.matches).length;
-  const unknownCount = assessed.filter((item) => item.unknown).length;
+  const matchCount = assessed.filter((item) => item.matches).length;
+  const visible = assessed.filter(
+    (item) => mode !== "filter" || !ev.data || !lenses.length || item.matches || item.unknown,
+  );
 
   function toggleLens(id: ReviewLensId) {
     setLenses((current) =>
       current.includes(id) ? current.filter((lens) => lens !== id) : [...current, id],
     );
-    setOverrides({});
   }
 
   return (
-    <div className="stack code-demo">
-      <Panel>
-        <div className="code-review-summary">
-          <div className="code-review-title">
-            <h2>{REVIEW_CONTEXT.title}</h2>
-            <p className="mono muted small">
-              {REVIEW_CONTEXT.baseRevision} → {REVIEW_CONTEXT.headRevision}
-            </p>
-          </div>
-          <div className="code-diff-totals">
-            <span>+{counts.added}</span>
-            <span>−{counts.removed}</span>
-          </div>
-          <Button
-            variant="primary"
-            loading={ev.loading}
-            onClick={() => {
-              setOverrides({});
-              void ev.run(buildReviewRequest());
-            }}
-          >
-            Analyze 12 hunks
-          </Button>
+    <div className="stack review-demo">
+      <div className="review-heading">
+        <div>
+          <h2>{REVIEW_CONTEXT.title}</h2>
+          <p className="review-provenance">
+            Synthetic PR · 12 hunks · <span className="review-added">+{totals.added}</span>{" "}
+            <span className="review-removed">−{totals.removed}</span>
+          </p>
         </div>
-      </Panel>
+        <Button
+          variant="primary"
+          loading={ev.loading}
+          onClick={() => void ev.run(buildReviewRequest())}
+        >
+          Analyze 12 hunks
+        </Button>
+      </div>
 
-      <EvaluationBar evaluation={ev} label="Review lenses" />
+      {(ev.loading || ev.request || ev.error) && (
+        <EvaluationBar evaluation={ev} label="Review lenses" />
+      )}
 
-      <div className="code-review-layout">
-        <Panel className="code-lens-panel">
-          <PanelHeader title="Lenses" />
-          <div className="code-lens-list">
-            {REVIEW_LENSES.map((lens) => {
-              const known = REVIEW_HUNKS.filter(
-                (hunk) =>
-                  readProbability(ev.data, reviewQuestionKey(hunk.id, lens.id)) !== undefined,
-              ).length;
-              const matches = REVIEW_HUNKS.filter(
-                (hunk) =>
-                  (readProbability(ev.data, reviewQuestionKey(hunk.id, lens.id)) ?? -1) >=
-                  threshold,
-              ).length;
-              return (
-                <button
-                  key={lens.id}
-                  type="button"
-                  className={`code-lens ${lenses.includes(lens.id) ? "is-active" : ""}`}
-                  aria-pressed={lenses.includes(lens.id)}
-                  onClick={() => toggleLens(lens.id)}
-                >
-                  <span className="code-lens-check" aria-hidden="true">
-                    {lenses.includes(lens.id) ? "✓" : ""}
-                  </span>
-                  <span>
-                    <strong>{lens.label}</strong>
-                    <small>{lens.description}</small>
-                  </span>
-                  <span className="code-lens-count">{known ? matches : "—"}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="code-lens-options">
-            <label className="field-label code-threshold-label" htmlFor="review-threshold">
-              <span>Threshold</span>
-              <strong>{Math.round(threshold * 100)}%</strong>
-            </label>
-            <input
-              id="review-threshold"
-              className="code-range"
-              type="range"
-              min="0.35"
-              max="0.95"
-              step="0.05"
-              value={threshold}
-              onChange={(event) => {
-                setThreshold(Number(event.target.value));
-                setOverrides({});
-              }}
-            />
-            <p className="small muted">Any selected lens. Unknown results stay visible.</p>
-            <label className="code-checkbox">
-              <input
-                type="checkbox"
-                checked={foldOthers}
-                onChange={(event) => {
-                  setFoldOthers(event.target.checked);
-                  setOverrides({});
-                }}
-              />
-              <span>Fold other hunks</span>
-            </label>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setFoldOthers(false);
-                setOverrides({});
-              }}
-            >
-              Expand all hunks
-            </Button>
-          </div>
-        </Panel>
-
-        <div className="stack code-hunks">
-          <div className="code-hunks-heading row spread wrap">
-            <span>
-              <strong>{ev.data ? focusedCount : "—"}</strong> hunks in focus
-              {unknownCount > 0 && ev.data ? (
-                <span className="muted"> · {unknownCount} with unknown selected judgments</span>
-              ) : null}
-            </span>
-            <span className="muted small">
-              {lenses.length ? "Any selected lens" : "All hunks"} · source order preserved
-            </span>
-          </div>
-          {assessed.map(({ hunk, probability, matches, unknown }, index) => {
-            const automaticOpen = !foldOthers || (ev.data ? matches || unknown : index < 2);
-            const open = overrides[hunk.id] ?? automaticOpen;
-            const hunkCounts = diffCounts(hunk.diff);
+      <div className="review-controls">
+        <div className="review-lenses" role="group" aria-label="Review lenses">
+          {REVIEW_LENSES.map((lens) => {
+            const count = assessed.filter((item) =>
+              item.active.some((active) => active.id === lens.id),
+            ).length;
             return (
-              <Panel
-                key={hunk.id}
-                className={`code-hunk ${ev.data && matches && lenses.length ? "is-focused" : ""}`}
+              <button
+                key={lens.id}
+                type="button"
+                className={`review-lens review-tone-${LENS_TONES[lens.id]} ${lenses.includes(lens.id) ? "is-active" : ""}`}
+                aria-pressed={lenses.includes(lens.id)}
+                title={lens.description}
+                onClick={() => toggleLens(lens.id)}
               >
-                <button
-                  type="button"
-                  className="code-hunk-heading"
-                  aria-expanded={open}
-                  aria-controls={`review-hunk-${hunk.id}`}
-                  onClick={() => setOverrides((current) => ({ ...current, [hunk.id]: !open }))}
-                >
-                  {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                  <span className="code-hunk-path">
-                    <strong>{hunk.path}</strong>
-                    <small>{hunk.section}</small>
-                  </span>
-                  <span className="code-hunk-lines">
-                    <span>+{hunkCounts.added}</span>
-                    <span>−{hunkCounts.removed}</span>
-                  </span>
-                  {!ev.data || unknown ? (
-                    <Badge tone="neutral">{ev.data ? "Some unknown" : "Unassessed"}</Badge>
-                  ) : (
-                    <Badge tone={matches && lenses.length ? "blue" : "neutral"}>
-                      {lenses.length ? (matches ? "In focus" : "Below threshold") : "Visible"}
-                    </Badge>
-                  )}
-                </button>
-                {open && (
-                  <div id={`review-hunk-${hunk.id}`}>
-                    <div className="code-hunk-scores">
-                      {REVIEW_LENSES.map((lens) => (
-                        <div
-                          className={lenses.includes(lens.id) ? "is-selected" : ""}
-                          key={lens.id}
-                        >
-                          <span>{lens.label}</span>
-                          <Probability
-                            value={readProbability(ev.data, reviewQuestionKey(hunk.id, lens.id))}
-                            compact
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <CodeBlock code={hunk.diff} language="diff" />
-                    <div className="code-hunk-context">
-                      <strong>Code contract</strong>
-                      <p>{hunk.context}</p>
-                    </div>
-                  </div>
+                <span className="review-dot" aria-hidden="true" />
+                {lens.label}
+                {ev.data && lenses.includes(lens.id) && (
+                  <span className="review-lens-count">{count}</span>
                 )}
-                {!open && (
-                  <div className="code-folded-note">
-                    <span>Folded · click to inspect</span>
-                    {lenses.length > 0 && probability !== undefined && (
-                      <span>Strongest selected lens: {Math.round(probability * 100)}%</span>
-                    )}
-                  </div>
-                )}
-              </Panel>
+              </button>
             );
           })}
         </div>
+        <div className="review-view-options">
+          <label className="review-threshold" htmlFor="review-threshold">
+            Mark at
+            <select
+              id="review-threshold"
+              className="select"
+              value={threshold}
+              onChange={(event) => setThreshold(Number(event.target.value))}
+            >
+              {[0.5, 0.65, 0.8, 0.9, 0.95].map((value) => (
+                <option key={value} value={value}>
+                  {Math.round(value * 100)}%
+                </option>
+              ))}
+            </select>
+          </label>
+          <Segmented
+            value={mode}
+            onChange={setMode}
+            ariaLabel="Review display"
+            options={[
+              { value: "decorate", label: "Decorate" },
+              { value: "filter", label: "Filter" },
+            ]}
+          />
+        </div>
       </div>
-      <div className="code-provenance">
-        Authored diff · 12 hunks · Facets are Jev judgments; line counts are exact.
+      <p className="review-scope">
+        {ev.data ? `${matchCount} of 12 hunks marked. ` : "Analyze to mark matching changes. "}
+        Jev judges each hunk; the marks cover its changed lines, not a line-level diagnosis.
+        {mode === "filter" && ev.data
+          ? ` ${12 - visible.length} hunks hidden; unknown judgments stay visible.`
+          : ""}
+      </p>
+
+      <div className="review-hunks">
+        {visible.map((item) => {
+          const { hunk, active, anchor, judgments, marks, ranges, unknown } = item;
+          const open = !collapsed[hunk.id];
+          const diff = parsedDiffs.get(hunk.id)!;
+          const counts = diffCounts(hunk.diff);
+          const tone = active[0]?.tone ?? "neutral";
+          const notes: DiffNote[] =
+            ev.data && anchor
+              ? [
+                  {
+                    id: hunk.id,
+                    ...anchor,
+                    content: (
+                      <div
+                        className={`review-annotation review-tone-${tone}`}
+                        data-hunk-annotation={hunk.id}
+                      >
+                        <div className="review-annotation-head">
+                          <strong>Jev · hunk judgment</strong>
+                          <span>{ranges.map(rangeLabel).join(" · ")}</span>
+                        </div>
+                        <div className="review-inline-scores">
+                          {judgments
+                            .filter((judgment) => judgment.selected)
+                            .map((judgment) => (
+                              <span
+                                key={judgment.id}
+                                className={`review-score review-tone-${judgment.tone} ${judgment.probability !== undefined && judgment.probability >= threshold ? "is-marked" : ""}`}
+                              >
+                                <span className="review-dot" aria-hidden="true" />
+                                {judgment.label}
+                                <strong>
+                                  {judgment.probability === undefined
+                                    ? "Unknown"
+                                    : `${Math.round(judgment.probability * 100)}%`}
+                                </strong>
+                              </span>
+                            ))}
+                          {!lenses.length && (
+                            <span className="muted">Select a lens to display its probability.</span>
+                          )}
+                        </div>
+                      </div>
+                    ),
+                  },
+                ]
+              : [];
+          return (
+            <Panel key={hunk.id} className={`review-hunk review-tone-${tone}`}>
+              <button
+                type="button"
+                className="review-hunk-heading"
+                aria-expanded={open}
+                aria-controls={`review-hunk-${hunk.id}`}
+                onClick={() => setCollapsed((current) => ({ ...current, [hunk.id]: open }))}
+              >
+                {open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                <span className="review-hunk-path">
+                  <strong>{hunk.path}</strong>
+                  <small>{hunk.section}</small>
+                </span>
+                <span className="review-line-count">
+                  <span className="review-added">+{counts.added}</span>{" "}
+                  <span className="review-removed">−{counts.removed}</span>
+                </span>
+                {!ev.data ? (
+                  <Badge tone="neutral">Unassessed</Badge>
+                ) : active.length ? (
+                  <span className="review-hunk-label">
+                    <span className="review-dot" aria-hidden="true" />
+                    {active[0].label}
+                  </span>
+                ) : (
+                  <Badge tone="neutral">
+                    {unknown ? "Unknown" : lenses.length ? "Below threshold" : "No lens selected"}
+                  </Badge>
+                )}
+              </button>
+              {open && (
+                <div id={`review-hunk-${hunk.id}`}>
+                  <DiffView diff={diff} notes={notes} marks={marks} />
+                  <details className="review-evidence">
+                    <summary>Context{ev.data ? " and all judgments" : ""}</summary>
+                    <p>{hunk.context}</p>
+                    {ev.data && (
+                      <dl className="review-all-judgments">
+                        {judgments.map((judgment) => (
+                          <div key={judgment.id}>
+                            <dt title={judgment.statement}>{judgment.label}</dt>
+                            <dd>
+                              {judgment.probability === undefined
+                                ? "Unknown"
+                                : `${Math.round(judgment.probability * 100)}%`}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    )}
+                    <p className="review-revisions">
+                      {REVIEW_CONTEXT.baseRevision} → {REVIEW_CONTEXT.headRevision}
+                    </p>
+                  </details>
+                </div>
+              )}
+            </Panel>
+          );
+        })}
+        {!visible.length && (
+          <p className="review-empty">
+            No hunks meet the selected lenses and threshold. Switch to Decorate to see all changes.
+          </p>
+        )}
       </div>
     </div>
   );

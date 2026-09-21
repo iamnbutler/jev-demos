@@ -21,6 +21,8 @@ const taskInstructions: Record<GenerationTask, string> = {
     "Write a single concise semantic code-search question appropriate to the supplied code. Describe behavior rather than identifiers. Return only the question, no quotes or explanation.",
   "context-task":
     "Write a concise new continuation goal for the supplied fictional agent transcript. Make it specific enough to change which earlier evidence is useful. Return only the goal, without explanation.",
+  changelog:
+    'Write a concise changelog using only the Jev-organized commit groups in the context. Read the supplied diffs and contracts, not just vague commit messages. Preserve the supplied category for each commit. Cover EVERY supplied commit at least once; related commits within one category may share an entry. Exclude only the commits listed in context.excluded. When a revert is included in the groups, describe it as a reversal rather than a newly shipped feature. Do not invent fixes, outcomes, deployment, benchmarks, release approval, or test execution. For uncertain groups, keep the uncertainty. Every entry must cite one or more exact supplied commit sha values from its own category. Keep SHA values out of text; cite them only in the commits array. Return only JSON: {"sections":[{"category":string,"entries":[{"text":string,"commits":[string]}]}]}. Include each supplied category once. Use one short factual sentence per entry, with no marketing language.',
 };
 
 function stripFence(text: string): string {
@@ -71,8 +73,8 @@ export async function generate(input: GenerateRequest): Promise<GenerateResponse
         503,
       );
     const result = await anthropic.messages.create({
-      model: config.anthropicModel,
-      max_tokens: 6000,
+      model: input.task === "changelog" ? config.changelogModel : config.anthropicModel,
+      max_tokens: input.task === "changelog" ? 4096 : 6000,
       system: instructions,
       messages: [{ role: "user", content: prompt }],
     });

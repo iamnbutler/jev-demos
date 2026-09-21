@@ -15,6 +15,7 @@ export const config = {
   jevModel: env("JEV_MODEL", "jev-1.13.0"),
   openaiModel: env("OPENAI_MODEL", "gpt-6-astra"),
   anthropicModel: env("ANTHROPIC_MODEL", "claude-sonnet-5"),
+  changelogModel: env("CHANGELOG_MODEL", "claude-haiku-4-5-20251001"),
   port: Number(env("API_PORT", env("PORT", "4317"))),
 };
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Pin, PinOff, ShieldCheck } from "lucide-react";
 import {
   Badge,
@@ -11,7 +11,7 @@ import {
   Segmented,
 } from "../../components/ui";
 import { useEvaluation } from "../../lib/jev";
-import { CONTEXT_TURNS, DEFAULT_CONTEXT_TASK } from "./context-data";
+import { CONTEXT_TURNS, DEFAULT_CONTEXT_TASK, type ContextTurn } from "./context-data";
 import {
   buildContextRequest,
   countCharacters,
@@ -20,6 +20,7 @@ import {
   renderContext,
   renderTurn,
   selectContext,
+  type ContextJudgment,
   type RetentionReason,
 } from "./context";
 import "./agents.css";
@@ -28,8 +29,8 @@ const reasonLabels: Record<RetentionReason, string> = {
   protected: "Protected",
   pinned: "Pinned",
   selected: "Retained",
-  budget: "Outside budget",
-  "low-signal": "Low signal",
+  budget: "Archived · budget",
+  "low-signal": "Archived · low signal",
   unassessed: "Not evaluated",
 };
 
@@ -45,43 +46,153 @@ const taskPresets = [
   },
 ];
 
+function ThreadTurn({
+  turn,
+  index,
+  retained,
+  reason,
+  active,
+  pinned,
+  judgment,
+  onPin,
+}: {
+  turn: ContextTurn;
+  index: number;
+  retained: boolean;
+  reason: RetentionReason;
+  active: boolean;
+  pinned: boolean;
+  judgment: ContextJudgment | undefined;
+  onPin: (id: string) => void;
+}) {
+  const titleId = `context-title-${turn.id}`;
+  return (
+    <article
+      id={`context-turn-${turn.id}`}
+      className="agents-thread-turn"
+      data-context-turn={turn.id}
+      data-retained={retained}
+      data-retention={reason}
+      data-active={active}
+      aria-labelledby={titleId}
+      tabIndex={-1}
+    >
+      <header className="agents-thread-turn-header">
+        <div className="agents-thread-turn-heading">
+          <span className="agents-thread-number mono">{String(index + 1).padStart(2, "0")}</span>
+          <div>
+            <h3 id={titleId}>{turn.title}</h3>
+            <p>
+              {turn.kind === "exchange"
+                ? "Call + result"
+                : turn.kind === "instruction"
+                  ? "User instruction"
+                  : "Agent note"}{" "}
+              · ~{estimateTokens(renderTurn(turn))} tokens
+            </p>
+          </div>
+        </div>
+        <div className="agents-thread-turn-actions">
+          <Badge tone={turn.protected || pinned ? "purple" : retained ? "blue" : "neutral"}>
+            {reasonLabels[reason]}
+          </Badge>
+          {turn.protected ? (
+            <span className="agents-thread-protected" title={turn.protectionReason}>
+              <ShieldCheck size={15} />
+              <span className="sr-only">{turn.protectionReason}</span>
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={`${pinned ? "Unpin" : "Pin"} ${turn.title}`}
+              aria-pressed={pinned}
+              onClick={() => onPin(turn.id)}
+            >
+              {pinned ? <PinOff size={14} /> : <Pin size={14} />}
+              {pinned ? "Unpin" : "Pin"}
+            </Button>
+          )}
+        </div>
+      </header>
+      <div className="agents-thread-messages">
+        {turn.messages.map((message) => (
+          <div
+            className="agents-chat-message"
+            data-role={message.role}
+            data-tool={Boolean(message.toolCallId)}
+            key={message.id}
+          >
+            <div className="agents-chat-message-label">
+              <strong>
+                {message.role === "tool"
+                  ? "Tool result"
+                  : message.toolCallId
+                    ? "Assistant · tool call"
+                    : message.role === "user"
+                      ? "User"
+                      : "Assistant"}
+              </strong>
+              {message.toolCallId && <span className="mono">{message.toolCallId}</span>}
+            </div>
+            <pre>{message.body}</pre>
+          </div>
+        ))}
+      </div>
+      <footer className="agents-thread-turn-footer">
+        <div className="agents-thread-judgments">
+          <Probability value={judgment?.relevant} label="P(relevant)" compact />
+          <Probability value={judgment?.essential} label="P(essential)" compact />
+        </div>
+        {!retained && (
+          <span className="agents-thread-recovery">
+            Outside assembled context. Full source preserved.
+          </span>
+        )}
+      </footer>
+    </article>
+  );
+}
+
 export default function ContextDemo() {
   const ev = useEvaluation();
   const [task, setTask] = useState(DEFAULT_CONTEXT_TASK);
   const [budget, setBudget] = useState(1450);
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
-  const [selectedId, setSelectedId] = useState("design-note");
-  const [filter, setFilter] = useState("all");
-  const [preview, setPreview] = useState("source");
+  const [activeId, setActiveId] = useState(CONTEXT_TURNS[0]!.id);
+  const [preview, setPreview] = useState("thread");
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
   const [generatedBy, setGeneratedBy] = useState<string | null>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const threadScroll = useRef(0);
+  const railTarget = useRef<{ id: string; top: number } | null>(null);
   const judgments = useMemo(() => readContextJudgments(ev.data, CONTEXT_TURNS), [ev.data]);
   const selection = useMemo(
     () => selectContext({ turns: CONTEXT_TURNS, task, budgetTokens: budget, judgments, pinnedIds }),
     [task, budget, judgments, pinnedIds],
   );
-  const fullText = renderContext(task, CONTEXT_TURNS);
-  const fullTokens = estimateTokens(fullText);
-  const rangeMax = Math.ceil(fullTokens / 64) * 64;
-  const selectedTurn = CONTEXT_TURNS.find((turn) => turn.id === selectedId)!;
-  const selectedReason = selection.reasons[selectedId]!;
-  const selectedRetained = selection.retained.some((turn) => turn.id === selectedId);
-  const shownTurns = CONTEXT_TURNS.filter(
-    (turn) =>
-      filter === "all" ||
-      (filter === "retained" ? selection.retained : selection.archived).some(
-        (item) => item.id === turn.id,
-      ),
+  const retainedIds = useMemo(
+    () => new Set(selection.retained.map((turn) => turn.id)),
+    [selection],
   );
+  const fullText = renderContext(task, CONTEXT_TURNS);
+  const rangeMax = Math.ceil(estimateTokens(fullText) / 64) * 64;
   const pairedTurns = CONTEXT_TURNS.filter((turn) => turn.kind === "exchange").length;
   const retainedCharactersPercent = Math.round(
     (selection.characters / countCharacters(fullText)) * 100,
   );
 
+  useLayoutEffect(() => {
+    if (preview === "thread" && threadRef.current)
+      threadRef.current.scrollTop = threadScroll.current;
+  }, [preview]);
+
   function changeTask(value: string) {
     setTask(value);
     setGeneratedBy(null);
     setCopied(false);
+    setCopyError(null);
     ev.reset();
   }
 
@@ -93,20 +204,55 @@ export default function ContextDemo() {
       return next;
     });
     setCopied(false);
+    setCopyError(null);
   }
 
   async function copyContext() {
+    setCopyError(null);
     try {
       await navigator.clipboard.writeText(selection.text);
       setCopied(true);
     } catch {
       setCopied(false);
+      setCopyError("Copy failed. Open Assembled context to select the text.");
     }
   }
 
+  function followThreadScroll() {
+    const container = threadRef.current;
+    if (!container || preview !== "thread") return;
+    threadScroll.current = container.scrollTop;
+    if (railTarget.current && Math.abs(container.scrollTop - railTarget.current.top) < 1) {
+      setActiveId(railTarget.current.id);
+      return;
+    }
+    railTarget.current = null;
+    const focusLine =
+      container.getBoundingClientRect().top + Math.min(80, container.clientHeight * 0.15);
+    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-context-turn]"));
+    const active = cards.find((card) => card.getBoundingClientRect().bottom > focusLine);
+    if (active?.dataset.contextTurn) setActiveId(active.dataset.contextTurn);
+  }
+
+  function jumpToTurn(id: string) {
+    const container = threadRef.current;
+    const card = container?.querySelector<HTMLElement>(`[data-context-turn="${id}"]`);
+    if (!container || !card) return;
+    const top =
+      container.scrollTop +
+      card.getBoundingClientRect().top -
+      container.getBoundingClientRect().top -
+      16;
+    container.scrollTo({ top, behavior: "auto" });
+    threadScroll.current = container.scrollTop;
+    railTarget.current = { id, top: container.scrollTop };
+    setActiveId(id);
+    card.focus({ preventScroll: true });
+  }
+
   return (
-    <div className="stack agents-context">
-      <div className="agents-context-controls">
+    <div className="agents-context agents-context-workspace">
+      <aside className="agents-context-sidebar" aria-label="Context controls">
         <Panel>
           <PanelHeader title="Objective" />
           <div className="agents-panel-body stack">
@@ -130,26 +276,16 @@ export default function ContextDemo() {
                 </Button>
               ))}
             </div>
-            <div className="spread row wrap">
-              <Button
-                variant="primary"
-                loading={ev.loading}
-                disabled={!task.trim()}
-                onClick={() => void ev.run(buildContextRequest(task, CONTEXT_TURNS))}
-              >
-                {ev.loading ? "Evaluating…" : "Evaluate"}
-              </Button>
-              <GenerationControl
-                task="context-task"
-                label="Draft objective"
-                prompt="Write a different, useful next-step objective for the agent working on this transcript. Focus on existing evidence or unfinished work. Do not invent new observations, executed tests, or requirements that conflict with the original user. Return only one to three sentences of plain text."
-                context={{ currentObjective: task, transcript: CONTEXT_TURNS }}
-                onGenerated={(text, result) => {
-                  changeTask(text);
-                  setGeneratedBy(`${result.provider} · ${result.model}`);
-                }}
-              />
-            </div>
+            <GenerationControl
+              task="context-task"
+              label="Draft objective"
+              prompt="Write a different, useful next-step objective for the agent working on this transcript. Focus on existing evidence or unfinished work. Do not invent new observations, executed tests, or requirements that conflict with the original user. Return only one to three sentences of plain text."
+              context={{ currentObjective: task, transcript: CONTEXT_TURNS }}
+              onGenerated={(text, result) => {
+                changeTask(text);
+                setGeneratedBy(`${result.provider} · ${result.model}`);
+              }}
+            />
             {generatedBy && (
               <p className="small muted agents-no-margin">
                 Draft: {generatedBy}. Evaluate to update the judgments.
@@ -191,6 +327,7 @@ export default function ContextDemo() {
                 onChange={(event) => {
                   setBudget(Number(event.target.value));
                   setCopied(false);
+                  setCopyError(null);
                 }}
               />
               <span className="agents-range-labels">
@@ -208,11 +345,9 @@ export default function ContextDemo() {
             </div>
             {selection.overBudget ? (
               <div className="agents-overflow" role="status">
-                <span>
-                  Protected and pinned turns need ~{selection.protectedTokens.toLocaleString()}{" "}
-                  tokens. Increase the budget or unpin optional turns. This context does{" "}
-                  <strong>not</strong> fit.
-                </span>
+                Protected and pinned turns need ~{selection.protectedTokens.toLocaleString()}{" "}
+                tokens. Increase the budget or unpin optional turns. This context does{" "}
+                <strong>not</strong> fit.
               </div>
             ) : (
               <p className="small muted agents-no-margin">
@@ -222,232 +357,151 @@ export default function ContextDemo() {
             )}
           </div>
         </Panel>
-      </div>
 
-      <EvaluationBar evaluation={ev} label="Relevance evaluation" />
+        <Panel className="agents-context-actions">
+          <div className="agents-panel-body stack">
+            <div className="row wrap">
+              <Button
+                variant="primary"
+                loading={ev.loading}
+                disabled={!task.trim()}
+                onClick={() => void ev.run(buildContextRequest(task, CONTEXT_TURNS))}
+              >
+                {ev.loading ? "Evaluating…" : "Evaluate"}
+              </Button>
+              <Button onClick={() => void copyContext()}>
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? "Copied" : "Copy context"}
+              </Button>
+            </div>
+            <EvaluationBar evaluation={ev} label="Relevance evaluation" />
+            {copyError && (
+              <p className="agents-copy-error" role="alert">
+                {copyError}
+              </p>
+            )}
+          </div>
+          <details className="agents-policy-footer">
+            <summary>Selection rules</summary>
+            <p>
+              Keep user constraints and manual pins. Eligible optional turns have P(relevant) ≥ 35%
+              or P(essential) ≥ 60%; rank by 65% relevance + 35% essential evidence, then recency.
+              Add whole turns only while the estimated budget fits. The complete source stays
+              recoverable. Changing the budget makes no API calls.
+            </p>
+          </details>
+        </Panel>
+      </aside>
 
-      <Panel>
+      <Panel className="agents-thread-panel">
         <PanelHeader
-          title="Transcript"
+          title="Thread"
           description={
             <>
               Synthetic source · {CONTEXT_TURNS.length} turns · {pairedTurns} call/result pairs
             </>
           }
           aside={
-            <div className="row">
+            <div className="row wrap">
               <Badge tone="blue">{selection.retained.length} retained</Badge>
               <Badge>{selection.archived.length} recoverable</Badge>
             </div>
           }
         />
-        <div className="agents-retention-map" aria-label="Source turns and retention status">
-          {CONTEXT_TURNS.map((turn, index) => {
-            const reason = selection.reasons[turn.id]!;
-            return (
-              <button
-                type="button"
-                key={turn.id}
-                className={`agents-retention-segment agents-retention-${reason} ${selectedId === turn.id ? "agents-retention-active" : ""}`}
-                style={{ flexGrow: renderTurn(turn).length }}
-                title={`${index + 1}. ${turn.title} — ${reasonLabels[reason]}`}
-                aria-label={`Inspect turn ${index + 1}, ${turn.title}, ${reasonLabels[reason]}`}
-                aria-pressed={selectedId === turn.id}
-                onClick={() => {
-                  setSelectedId(turn.id);
-                  setPreview("source");
-                }}
-              >
-                <span>{index + 1}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="agents-retention-legend">
-          <span>
-            <i className="agents-key agents-key-protected" />
-            Protected / pinned
-          </span>
-          <span>
-            <i className="agents-key agents-key-retained" />
-            Retained
-          </span>
-          <span>
-            <i className="agents-key agents-key-archived" />
-            Recoverable
-          </span>
-          <span className="muted">Oldest → newest</span>
-        </div>
-        <div className="agents-context-board">
-          <div className="agents-source-column">
-            <div className="agents-source-toolbar">
-              <span className="agents-eyebrow">Source</span>
-              <Segmented
-                value={filter}
-                onChange={setFilter}
-                ariaLabel="Transcript turn filter"
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "retained", label: "Retained" },
-                  { value: "archived", label: "Recoverable" },
-                ]}
-              />
+        <div className="agents-thread-toolbar">
+          <Segmented
+            value={preview}
+            onChange={setPreview}
+            ariaLabel="Context preview"
+            options={[
+              { value: "thread", label: "Full thread" },
+              { value: "retained", label: "Assembled context" },
+            ]}
+          />
+          {preview === "thread" ? (
+            <div className="agents-thread-legend" aria-label="Retention legend">
+              <span>
+                <i className="agents-key agents-key-protected" />
+                Protected / pinned
+              </span>
+              <span>
+                <i className="agents-key agents-key-retained" />
+                Retained
+              </span>
+              <span>
+                <i className="agents-key agents-key-archived" />
+                Recoverable
+              </span>
             </div>
-            <div className="agents-turn-list">
-              {shownTurns.map((turn) => {
-                const index = CONTEXT_TURNS.indexOf(turn);
-                const reason = selection.reasons[turn.id]!;
-                const retained = selection.retained.some((item) => item.id === turn.id);
-                return (
-                  <div
-                    key={turn.id}
-                    className={`agents-turn-row ${selectedId === turn.id ? "agents-turn-selected" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      className="agents-turn-select"
-                      aria-pressed={selectedId === turn.id}
-                      onClick={() => {
-                        setSelectedId(turn.id);
-                        setPreview("source");
-                      }}
-                    >
-                      <span className={`agents-turn-number ${retained ? "agents-turn-kept" : ""}`}>
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <span className="agents-turn-label">
-                        <strong>{turn.title}</strong>
-                        <span>
-                          {turn.kind === "exchange"
-                            ? "Call + result"
-                            : turn.kind === "instruction"
-                              ? "User instruction"
-                              : "Agent note"}{" "}
-                          · ~{estimateTokens(renderTurn(turn))} tokens
-                        </span>
-                        <small className={retained ? "agents-kept-label" : ""}>
-                          {reasonLabels[reason]}
-                        </small>
-                      </span>
-                    </button>
-                    {turn.protected ? (
-                      <span className="agents-protected-icon" title={turn.protectionReason}>
-                        <ShieldCheck size={15} />
-                        <span className="sr-only">Protected instruction</span>
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        className={`agents-pin-button ${pinnedIds.has(turn.id) ? "agents-is-pinned" : ""}`}
-                        aria-label={`${pinnedIds.has(turn.id) ? "Unpin" : "Pin"} ${turn.title}`}
-                        aria-pressed={pinnedIds.has(turn.id)}
-                        title={
-                          pinnedIds.has(turn.id) ? "Unpin this turn" : "Always retain this turn"
-                        }
-                        onClick={() => togglePin(turn.id)}
-                      >
-                        <Pin size={14} />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-              {shownTurns.length === 0 && (
-                <p className="agents-list-empty">No turns in this view.</p>
-              )}
-            </div>
-          </div>
+          ) : (
+            <span className="agents-thread-output-count">
+              {selection.characters.toLocaleString()} characters · ~
+              {selection.estimatedTokens.toLocaleString()} tokens
+            </span>
+          )}
+        </div>
 
-          <div className="agents-preview-column">
-            <div className="agents-preview-toolbar">
-              <Segmented
-                value={preview}
-                onChange={setPreview}
-                ariaLabel="Context preview"
-                options={[
-                  { value: "source", label: "Source turn" },
-                  { value: "retained", label: "Assembled context" },
-                ]}
+        <div className="agents-thread-viewport" hidden={preview !== "thread"}>
+          <div
+            className="agents-thread-scroll"
+            ref={threadRef}
+            onScroll={followThreadScroll}
+            role="region"
+            aria-label="Complete source transcript"
+            tabIndex={0}
+          >
+            {CONTEXT_TURNS.map((turn, index) => (
+              <ThreadTurn
+                key={turn.id}
+                turn={turn}
+                index={index}
+                retained={retainedIds.has(turn.id)}
+                reason={selection.reasons[turn.id]!}
+                active={activeId === turn.id}
+                pinned={pinnedIds.has(turn.id)}
+                judgment={judgments[turn.id]}
+                onPin={togglePin}
               />
-              {preview === "retained" && (
-                <Button size="sm" variant="ghost" onClick={() => void copyContext()}>
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  {copied ? "Copied" : "Copy text"}
-                </Button>
-              )}
-            </div>
-            {preview === "source" ? (
-              <div className="agents-turn-detail">
-                <div className="spread row wrap">
-                  <div>
-                    <span className="agents-eyebrow">
-                      Turn {CONTEXT_TURNS.indexOf(selectedTurn) + 1}
-                    </span>
-                    <h3>{selectedTurn.title}</h3>
-                  </div>
-                  <Badge tone={selectedRetained ? "blue" : "neutral"}>
-                    {reasonLabels[selectedReason]}
-                  </Badge>
-                </div>
-                <div className="agents-turn-probabilities">
-                  <Probability
-                    value={judgments[selectedId]?.relevant}
-                    label="P(relevant to objective)"
-                  />
-                  <Probability
-                    value={judgments[selectedId]?.essential}
-                    label="P(unique essential evidence)"
-                  />
-                </div>
-                {selectedTurn.protected ? (
-                  <div className="agents-source-note">{selectedTurn.protectionReason}</div>
-                ) : (
-                  <div className="agents-source-note">
-                    <span>
-                      {selectedRetained
-                        ? "Retained. Source remains available."
-                        : "Excluded from context. Pin to restore the whole turn."}
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={() => togglePin(selectedTurn.id)}>
-                      {pinnedIds.has(selectedTurn.id) ? <PinOff size={14} /> : <Pin size={14} />}
-                      {pinnedIds.has(selectedTurn.id) ? "Unpin" : "Pin"}
-                    </Button>
-                  </div>
-                )}
-                <div className="agents-message-stack">
-                  {selectedTurn.messages.map((message) => (
-                    <div className="agents-message" key={message.id}>
-                      <div className="agents-message-header">
-                        <span>{message.role}</span>
-                        {message.toolCallId && <span className="mono">{message.toolCallId}</span>}
-                      </div>
-                      <pre>{message.body}</pre>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="agents-assembled">
-                <div className="agents-assembled-caption">
-                  <span>
-                    Source order · paired calls/results · {selection.characters.toLocaleString()}{" "}
-                    characters
-                  </span>
-                </div>
-                <pre tabIndex={0}>{selection.text}</pre>
-              </div>
-            )}
+            ))}
           </div>
+          <nav className="agents-thread-rail" aria-label="Transcript overview">
+            <span className="agents-thread-rail-label">Turn</span>
+            <div className="agents-thread-rail-track">
+              {CONTEXT_TURNS.map((turn, index) => (
+                <button
+                  type="button"
+                  key={turn.id}
+                  className="agents-thread-rail-marker"
+                  data-retention={selection.reasons[turn.id]}
+                  style={{ flexGrow: renderTurn(turn).length }}
+                  aria-label={`Go to turn ${index + 1}: ${turn.title} (${reasonLabels[selection.reasons[turn.id]!]})`}
+                  aria-current={activeId === turn.id ? "location" : undefined}
+                  title={`${index + 1}. ${turn.title} — ${reasonLabels[selection.reasons[turn.id]!]}`}
+                  onClick={() => jumpToTurn(turn.id)}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </button>
+              ))}
+            </div>
+            <span className="agents-thread-rail-end">End</span>
+          </nav>
         </div>
-        <details className="agents-policy-footer">
-          <summary>Selection rules</summary>
-          <p>
-            Keep user constraints and manual pins. Eligible optional turns have P(relevant) ≥ 35% or
-            P(essential) ≥ 60%; rank by 65% relevance + 35% essential evidence, then recency. Add
-            whole turns only while the estimated budget fits. The complete source stays recoverable.
-            Changing the budget makes no API calls.
-          </p>
-        </details>
+        {preview === "retained" && (
+          <div className="agents-context-output">
+            {selection.overBudget && (
+              <p className="agents-overflow">
+                Protected and pinned turns exceed this budget. Increase it or remove optional pins
+                before using this context.
+              </p>
+            )}
+            <p className="agents-context-output-note">
+              Retained source in chronological order. Calls and results stay paired.
+            </p>
+            <pre tabIndex={0} aria-label="Assembled context text">
+              {selection.text}
+            </pre>
+          </div>
+        )}
       </Panel>
     </div>
   );
