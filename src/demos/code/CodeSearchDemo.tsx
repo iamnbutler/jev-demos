@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { appPath } from "../../lib/path";
 import { ArrowDown, ArrowUp, ExternalLink, Square } from "lucide-react";
 import {
   Button,
@@ -48,7 +49,7 @@ function useCorpus() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const abort = new AbortController();
-    void fetch("/semantic-search/corpus.json", { signal: abort.signal })
+    void fetch(appPath("semantic-search/corpus.json"), { signal: abort.signal })
       .then(async (response) => {
         if (!response.ok)
           throw new Error("The public source corpus could not be loaded. Reload to try again.");
@@ -711,7 +712,7 @@ export default function CodeSearchDemo() {
             ? "Authored synthetic TypeScript fixture. Results cover this snapshot only."
             : `${functions.length.toLocaleString()} real source excerpts · pinned MIT repositories · `}
           {!fixture && (
-            <a href="/semantic-search/NOTICE.md" target="_blank" rel="noreferrer">
+            <a href={appPath("semantic-search/NOTICE.md")} target="_blank" rel="noreferrer">
               Corpus method & licenses
             </a>
           )}

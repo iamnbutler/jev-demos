@@ -2,7 +2,7 @@ import { config } from "./config";
 import { handleRequest } from "./app";
 
 const server = Bun.serve({
-  hostname: "127.0.0.1",
+  hostname: config.host,
   port: config.port,
   fetch: handleRequest,
   maxRequestBodySize: 310000,

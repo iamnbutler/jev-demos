@@ -1,9 +1,9 @@
 import { resolve, extname } from "node:path";
 import type { GenerateRequest, JevRequest } from "../shared/api";
-import { health, projectRoot } from "./config";
+import { config, health, projectRoot } from "./config";
 import { evaluateJev } from "./jev";
 import { generate } from "./generation";
-import { evaluationSchema, generationSchema, isLocalRequest, ServiceError } from "./validation";
+import { evaluationSchema, generationSchema, isAllowedRequest, ServiceError } from "./validation";
 
 const headers = { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 const json = (data: unknown, status = 200) => Response.json(data, { status, headers });
@@ -28,11 +28,8 @@ async function readBody(request: Request): Promise<unknown> {
 export async function handleRequest(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   if (path.startsWith("/api/")) {
-    if (!isLocalRequest(request))
-      return json(
-        { error: "This local research server accepts requests from its own local app only." },
-        403,
-      );
+    if (!isAllowedRequest(request, config.publicOrigin))
+      return json({ error: "This server accepts requests from its configured app only." }, 403);
     if (request.method === "GET" && path === "/api/health") return json(health);
     if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
     try {

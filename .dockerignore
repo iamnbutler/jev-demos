@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+.cache
+test-results
+playwright-report
+*.log

@@ -29,6 +29,7 @@ import type {
 } from "../../shared/api";
 import type { Evaluation } from "../lib/jev";
 import { useHealth } from "../lib/health";
+import { appPath } from "../lib/path";
 
 export function Panel({ children, className = "", ...rest }: HTMLAttributes<HTMLElement>) {
   return (
@@ -333,7 +334,7 @@ export function GenerationControl({
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("/api/generate", {
+      const response = await fetch(appPath("api/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ task, context, prompt, provider }),

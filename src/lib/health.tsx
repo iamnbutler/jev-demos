@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Health } from "../../shared/api";
+import { appPath } from "./path";
 
 type HealthState = { health: Health | null; error: string | null };
 const HealthContext = createContext<HealthState>({ health: null, error: null });
@@ -8,7 +9,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HealthState>({ health: null, error: null });
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/health", { signal: controller.signal })
+    fetch(appPath("api/health"), { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("The local API server is unavailable.");
         setState({ health: await response.json(), error: null });

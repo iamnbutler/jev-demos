@@ -15,6 +15,22 @@ The existing local `.dev.vars` is already configured. Development serves the app
 
 For a production build, stop the development server, then run `bun run build && bun start`. This serves the built app and API on 4317. `API_PORT` can override that port.
 
+### Next Demos hosting
+
+The Coolify **next-demos** project serves this repo privately at
+`https://demos.githubnext.com/iamnbutler/jev-demos/` behind Next Cloud sign-in.
+Use the Dockerfile with build variable `BASE_PATH=/iamnbutler/jev-demos/` and
+runtime `PUBLIC_ORIGIN=https://demos.githubnext.com`. The container listens on
+`0.0.0.0:3213`; `/api/health` is its liveness check. Give this resource no public
+domain or published host port. The Next Demos gateway strips the prefix before
+proxying and protects the app, assets, and API.
+
+Set `JEV_TOKEN`, `OPENAI_API_KEY`, and `ANTHROPIC_API_KEY` as **runtime-only**
+variables on the **iamnbutler / jev-demos** Coolify application, then redeploy.
+Provider keys are not needed for a build or for browsing the demos. Keep them
+out of build arguments and the gateway's environment. Local development still
+uses `/` and its existing localhost-only request checks by default.
+
 ## Demos
 
 | Demo                | Open                                              | Try                                                                                                           |

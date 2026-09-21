@@ -69,3 +69,12 @@ export function isLocalRequest(request: Request): boolean {
     return false;
   }
 }
+
+/** Hosted mode is reachable only through the authenticated Next Demos gateway. */
+export function isAllowedRequest(request: Request, publicOrigin = ""): boolean {
+  if (!publicOrigin) return isLocalRequest(request);
+  const origin = request.headers.get("origin");
+  // Same-origin browser GETs and container health checks have no Origin header.
+  if (!origin) return request.method === "GET" || request.method === "HEAD";
+  return origin === publicOrigin;
+}

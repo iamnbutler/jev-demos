@@ -3,6 +3,7 @@ import { Check, Copy } from "lucide-react";
 import type { GenerateRequest, GenerateResponse, JevResponse } from "../../../shared/api";
 import { Badge, Button, Panel, PanelHeader } from "../../components/ui";
 import { useHealth } from "../../lib/health";
+import { appPath } from "../../lib/path";
 import type { HistoryCommit } from "./history-data";
 import {
   canceledCommitIds,
@@ -80,7 +81,7 @@ export default function HistoryChangelog({
     setResult(null);
     setCopied(null);
     try {
-      const response = await fetch("/api/generate", {
+      const response = await fetch(appPath("api/generate"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),

@@ -8,7 +8,21 @@ const varsPath = resolve(projectRoot, ".dev.vars");
 const vars = existsSync(varsPath) ? parse(readFileSync(varsPath)) : {};
 const env = (key: string, fallback = "") => process.env[key] || vars[key] || fallback;
 
+const publicOrigin = env("PUBLIC_ORIGIN");
+if (publicOrigin) {
+  const url = new URL(publicOrigin);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.origin !== publicOrigin ||
+    url.username ||
+    url.password
+  )
+    throw new Error("PUBLIC_ORIGIN must be an HTTP(S) origin without a path or credentials.");
+}
+
 export const config = {
+  host: env("HOST", "127.0.0.1"),
+  publicOrigin,
   jevToken: env("JEV_TOKEN", env("TYPESAFE_API_KEY")),
   openaiKey: env("OPENAI_API_KEY"),
   anthropicKey: env("ANTHROPIC_API_KEY"),

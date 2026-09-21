@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChoiceAnswer, JevRequest, JevResponse, ScoreAnswer } from "../../shared/api";
+import { appPath } from "./path";
 
 export type Evaluation = {
   data: JevResponse | null;
@@ -12,7 +13,7 @@ export type Evaluation = {
 
 export async function evaluate(input: JevRequest, signal?: AbortSignal): Promise<JevResponse> {
   const started = performance.now();
-  const response = await fetch("/api/evaluate", {
+  const response = await fetch(appPath("api/evaluate"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
